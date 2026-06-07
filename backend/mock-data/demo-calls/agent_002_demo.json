@@ -1,0 +1,16 @@
+{
+  "id": "call_002_demo", "agentId": "agent_002", "callerNumber": "+15550299",
+  "duration": 198, "outcome": "no_booking", "callTimestamp": "2026-06-05T16:00:00Z",
+  "transcript": [
+    {"turnIndex":0,"speaker":"agent","text":"Hi, is this Daniel Brooks?","timestamp":0,"confidence":0.96},
+    {"turnIndex":1,"speaker":"human","text":"Yes.","timestamp":5,"confidence":0.93},
+    {"turnIndex":2,"speaker":"agent","text":"Hi Daniel, Jordan from Riverside Realty. You inquired about buying a home.","timestamp":8,"confidence":0.95},
+    {"turnIndex":3,"speaker":"human","text":"Yes, but I'm worried we can't afford anything in this market.","timestamp":17,"confidence":0.89},
+    {"turnIndex":4,"speaker":"agent","text":"What's your budget?","timestamp":28,"confidence":0.96},
+    {"turnIndex":5,"speaker":"human","text":"Around $380,000. We only have $20k saved for a down payment.","timestamp":33,"confidence":0.88},
+    {"turnIndex":6,"speaker":"agent","text":"That's a tight market segment but not impossible.","timestamp":44,"confidence":0.93},
+    {"turnIndex":7,"speaker":"human","text":"Do you have anything to show us in that range?","timestamp":52,"confidence":0.90},
+    {"turnIndex":8,"speaker":"agent","text":"Limited inventory at that price. It would be hard to find something decent.","timestamp":60,"confidence":0.92},
+    {"turnIndex":9,"speaker":"human","text":"Okay so probably not worth pursuing then. Thanks.","timestamp":72,"confidence":0.89}
+  ]
+}

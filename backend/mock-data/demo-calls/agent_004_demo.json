@@ -1,0 +1,14 @@
+{
+  "id": "call_004_demo", "agentId": "agent_004", "callerNumber": "+15550499",
+  "duration": 187, "outcome": "no_booking", "callTimestamp": "2026-06-05T17:00:00Z",
+  "transcript": [
+    {"turnIndex":0,"speaker":"agent","text":"Hi, is this Karen Lopez?","timestamp":0,"confidence":0.96},
+    {"turnIndex":1,"speaker":"human","text":"Yes, what's this regarding?","timestamp":6,"confidence":0.91},
+    {"turnIndex":2,"speaker":"agent","text":"Hi Karen, Riley from SafeGuard. Calling about your policy renewal coming up.","timestamp":10,"confidence":0.95},
+    {"turnIndex":3,"speaker":"human","text":"My premium went up $300 this year. I'm shopping around for a better rate.","timestamp":20,"confidence":0.89},
+    {"turnIndex":4,"speaker":"agent","text":"I understand premiums have gone up across the industry.","timestamp":34,"confidence":0.93},
+    {"turnIndex":5,"speaker":"human","text":"That doesn't help me. I've gotten quotes $250 cheaper elsewhere.","timestamp":44,"confidence":0.88},
+    {"turnIndex":6,"speaker":"agent","text":"I can offer the loyalty discount but it won't fully match that.","timestamp":56,"confidence":0.92},
+    {"turnIndex":7,"speaker":"human","text":"Then I'll just switch. Thanks anyway.","timestamp":68,"confidence":0.89}
+  ]
+}

@@ -1,0 +1,155 @@
+[
+  {
+    "id": "call_003_01", "agentId": "agent_003", "callerNumber": "+15550301",
+    "duration": 112, "outcome": "no_booking", "callTimestamp": "2026-05-20T09:00:00Z", "scenario": "price_obj",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Gary Mitchell?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Yeah, who's calling?","timestamp":6,"confidence":0.91},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Gary, this is Sam from Cool Air Services. We're calling about scheduling an HVAC maintenance visit. Is that something you'd be interested in?","timestamp":9,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"How much does it cost?","timestamp":23,"confidence":0.92},
+      {"turnIndex":4,"speaker":"agent","text":"The standard maintenance visit is $89.","timestamp":30,"confidence":0.96},
+      {"turnIndex":5,"speaker":"human","text":"That's a bit more than I was expecting. Our last service company only charged us $60.","timestamp":36,"confidence":0.89},
+      {"turnIndex":6,"speaker":"agent","text":"I understand. That's our standard rate.","timestamp":49,"confidence":0.94},
+      {"turnIndex":7,"speaker":"human","text":"I think I'll just go with them again then. Thanks anyway.","timestamp":55,"confidence":0.90},
+      {"turnIndex":8,"speaker":"agent","text":"No problem. Have a good day.","timestamp":63,"confidence":0.95}
+    ]
+  },
+  {
+    "id": "call_003_02", "agentId": "agent_003", "callerNumber": "+15550302",
+    "duration": 143, "outcome": "no_booking", "callTimestamp": "2026-05-21T11:00:00Z", "scenario": "price_obj",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning, is this Linda Carter?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Yes, this is Linda.","timestamp":6,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Linda! Sam here from Cool Air Services. We're offering HVAC maintenance visits this season. Interested?","timestamp":9,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"My AC hasn't been cooling as well as it used to lately. How much for a service call?","timestamp":22,"confidence":0.91},
+      {"turnIndex":4,"speaker":"agent","text":"The maintenance visit is $89.","timestamp":34,"confidence":0.96},
+      {"turnIndex":5,"speaker":"human","text":"And what exactly does that include?","timestamp":40,"confidence":0.91},
+      {"turnIndex":6,"speaker":"agent","text":"It includes a full inspection and tune-up of your system.","timestamp":47,"confidence":0.94},
+      {"turnIndex":7,"speaker":"human","text":"I've seen companies advertising similar services for around $59. Is there any flexibility on the price?","timestamp":55,"confidence":0.88},
+      {"turnIndex":8,"speaker":"agent","text":"That's our set price unfortunately. I can't go lower.","timestamp":70,"confidence":0.93},
+      {"turnIndex":9,"speaker":"human","text":"Hmm. I'll probably just shop around a bit more then.","timestamp":78,"confidence":0.89},
+      {"turnIndex":10,"speaker":"agent","text":"Okay, no problem. Let us know if you change your mind.","timestamp":87,"confidence":0.94}
+    ]
+  },
+  {
+    "id": "call_003_03", "agentId": "agent_003", "callerNumber": "+15550303",
+    "duration": 134, "outcome": "no_booking", "callTimestamp": "2026-05-23T13:00:00Z", "scenario": "price_obj",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Frank Russo?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Speaking.","timestamp":6,"confidence":0.93},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Frank, Sam from Cool Air Services. We're scheduling HVAC maintenance appointments for the summer. Can I get you on the calendar?","timestamp":9,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"What's the cost on that?","timestamp":23,"confidence":0.92},
+      {"turnIndex":4,"speaker":"agent","text":"It's $89 for the standard visit.","timestamp":29,"confidence":0.96},
+      {"turnIndex":5,"speaker":"human","text":"Is there any kind of seasonal discount? A lot of companies are running promotions right now.","timestamp":35,"confidence":0.90},
+      {"turnIndex":6,"speaker":"agent","text":"We don't currently have any promotions running.","timestamp":48,"confidence":0.94},
+      {"turnIndex":7,"speaker":"human","text":"I might be able to get a better deal elsewhere then. Can I think about it?","timestamp":55,"confidence":0.89},
+      {"turnIndex":8,"speaker":"agent","text":"Of course, take your time.","timestamp":67,"confidence":0.93},
+      {"turnIndex":9,"speaker":"human","text":"Okay, I'll give you a call back if I decide to go with you.","timestamp":73,"confidence":0.90}
+    ]
+  },
+  {
+    "id": "call_003_04", "agentId": "agent_003", "callerNumber": "+15550304",
+    "duration": 198, "outcome": "booked", "callTimestamp": "2026-05-26T10:00:00Z", "scenario": "missed_upsell",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Nancy Brown?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Yes, hi!","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Nancy! Sam from Cool Air Services. Looking to get your AC serviced before the heat really kicks in?","timestamp":9,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"Yes, definitely. Oh and my old thermostat has been acting up too — sometimes it doesn't respond right. I've been meaning to get that looked at.","timestamp":22,"confidence":0.92},
+      {"turnIndex":4,"speaker":"agent","text":"Got it. What type of AC system do you have?","timestamp":38,"confidence":0.96},
+      {"turnIndex":5,"speaker":"human","text":"Central air, it's about 8 years old. Haven't had it serviced in two years.","timestamp":45,"confidence":0.93},
+      {"turnIndex":6,"speaker":"agent","text":"Sounds like it's due for a checkup. The visit is $89. I can get you in Tuesday at 10am or Thursday at 2pm.","timestamp":56,"confidence":0.95},
+      {"turnIndex":7,"speaker":"human","text":"Tuesday at 10 works.","timestamp":70,"confidence":0.95},
+      {"turnIndex":8,"speaker":"agent","text":"Great, Tuesday at 10am it is! You'll get a confirmation shortly.","timestamp":75,"confidence":0.96},
+      {"turnIndex":9,"speaker":"human","text":"Perfect, thank you!","timestamp":84,"confidence":0.95}
+    ]
+  },
+  {
+    "id": "call_003_05", "agentId": "agent_003", "callerNumber": "+15550305",
+    "duration": 211, "outcome": "booked", "callTimestamp": "2026-05-27T15:00:00Z", "scenario": "missed_upsell",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good afternoon, is this Doug Spencer?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Yes, this is Doug.","timestamp":6,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Doug! Sam from Cool Air Services. Scheduling HVAC maintenance. Interested in getting your unit serviced?","timestamp":9,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"Yeah, we actually have two units — one for each floor. The downstairs one is the priority but the upstairs has been running a bit louder than usual.","timestamp":22,"confidence":0.92},
+      {"turnIndex":4,"speaker":"agent","text":"Understood. The maintenance visit is $89. I have openings Wednesday at 11am or Friday at 3pm.","timestamp":40,"confidence":0.95},
+      {"turnIndex":5,"speaker":"human","text":"Wednesday at 11 works.","timestamp":52,"confidence":0.94},
+      {"turnIndex":6,"speaker":"agent","text":"Booked for Wednesday at 11! We'll take a look at the downstairs unit for you.","timestamp":56,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"Sounds good. And you'll just let me know if the upstairs one also needs something?","timestamp":67,"confidence":0.92},
+      {"turnIndex":8,"speaker":"agent","text":"Of course, we can take a look while we're there.","timestamp":78,"confidence":0.94}
+    ]
+  },
+  {
+    "id": "call_003_06", "agentId": "agent_003", "callerNumber": "+15550306",
+    "duration": 187, "outcome": "booked", "callTimestamp": "2026-05-29T09:00:00Z", "scenario": "missed_upsell",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Rita Coleman?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Speaking.","timestamp":6,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Rita, Sam from Cool Air Services. We're scheduling summer maintenance appointments. Can I get your AC serviced?","timestamp":9,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"Yes, please. We've also been worried about the air quality indoors. My daughter has allergies and it's been bad this season.","timestamp":22,"confidence":0.91},
+      {"turnIndex":4,"speaker":"agent","text":"I'm sorry to hear that. What type of system do you have and when was it last serviced?","timestamp":38,"confidence":0.95},
+      {"turnIndex":5,"speaker":"human","text":"Central air, about 6 years old. I don't think it's been serviced in three years.","timestamp":49,"confidence":0.92},
+      {"turnIndex":6,"speaker":"agent","text":"Definitely overdue. The maintenance visit is $89. I have Thursday at 1pm or Saturday at 9am.","timestamp":61,"confidence":0.95},
+      {"turnIndex":7,"speaker":"human","text":"Thursday at 1 works for me.","timestamp":74,"confidence":0.94},
+      {"turnIndex":8,"speaker":"agent","text":"Thursday at 1pm, all set! We'll get that system tuned up for you.","timestamp":79,"confidence":0.96}
+    ]
+  },
+  {
+    "id": "call_003_07", "agentId": "agent_003", "callerNumber": "+15550307",
+    "duration": 78, "outcome": "dropped", "callTimestamp": "2026-06-01T14:00:00Z", "scenario": "early_drop",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, this is Sam from Cool Air Services. Am I speaking with Andrew Hughes?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Yeah. What's this about?","timestamp":7,"confidence":0.90},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Andrew! We're scheduling HVAC maintenance appointments. The visit is $89 and I have some openings this week.","timestamp":12,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"$89? Let me check with my wife about the budget first. I'll call you back.","timestamp":27,"confidence":0.88},
+      {"turnIndex":4,"speaker":"agent","text":"Of course, no problem.","timestamp":41,"confidence":0.94}
+    ]
+  },
+  {
+    "id": "call_003_08", "agentId": "agent_003", "callerNumber": "+15550308",
+    "duration": 147, "outcome": "no_booking", "callTimestamp": "2026-06-02T10:30:00Z", "scenario": "off_script",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Brenda Walsh?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Yes.","timestamp":6,"confidence":0.93},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Brenda! Sam from Cool Air Services. We're doing HVAC maintenance visits. Can I get you scheduled?","timestamp":9,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"Maybe. What does the visit cover exactly?","timestamp":22,"confidence":0.91},
+      {"turnIndex":4,"speaker":"agent","text":"It's a full tune-up and inspection. $89 for the visit. I have Monday or Wednesday available.","timestamp":30,"confidence":0.95},
+      {"turnIndex":5,"speaker":"human","text":"Okay, but what brand is my unit? You should probably know that before coming out right?","timestamp":43,"confidence":0.89},
+      {"turnIndex":6,"speaker":"agent","text":"We service all major brands. Monday at 2pm or Wednesday at 11am?","timestamp":57,"confidence":0.94},
+      {"turnIndex":7,"speaker":"human","text":"How old is it though? Does that matter for the service?","timestamp":68,"confidence":0.88},
+      {"turnIndex":8,"speaker":"agent","text":"Age can be relevant but we'll assess when we arrive.","timestamp":79,"confidence":0.93},
+      {"turnIndex":9,"speaker":"human","text":"I feel like you should ask me these things before booking. I'll think about it.","timestamp":88,"confidence":0.87}
+    ]
+  },
+  {
+    "id": "call_003_09", "agentId": "agent_003", "callerNumber": "+15550309",
+    "duration": 198, "outcome": "escalated", "callTimestamp": "2026-06-03T15:00:00Z", "scenario": "escalation",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, this is Sam from Cool Air Services. Is this Marcus Webb?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Yeah. Good timing — my AC is actually completely out right now.","timestamp":7,"confidence":0.89},
+      {"turnIndex":2,"speaker":"agent","text":"Oh no, I'm sorry to hear that. Is it not turning on at all or is it running but not cooling?","timestamp":17,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"It's running but there's a burning smell and it stopped blowing cold air completely. Also noticed some ice around the outside unit.","timestamp":29,"confidence":0.88},
+      {"turnIndex":4,"speaker":"agent","text":"That sounds like it could be a refrigerant issue but I don't want to say for sure. We'd need someone to take a look.","timestamp":47,"confidence":0.93},
+      {"turnIndex":5,"speaker":"human","text":"This sounds serious. Can you get someone out today? It's 85 degrees in here and I have elderly parents at home.","timestamp":63,"confidence":0.86},
+      {"turnIndex":6,"speaker":"agent","text":"I understand the urgency. I'll need to escalate this to our dispatch team for an emergency visit — that's outside what I can schedule on this call.","timestamp":82,"confidence":0.93},
+      {"turnIndex":7,"speaker":"human","text":"How long is that going to take?","timestamp":101,"confidence":0.85},
+      {"turnIndex":8,"speaker":"agent","text":"I'm connecting you with dispatch now. They'll be able to give you an ETA. Please hold for just a moment.","timestamp":108,"confidence":0.94}
+    ]
+  },
+  {
+    "id": "call_003_10", "agentId": "agent_003", "callerNumber": "+15550310",
+    "duration": 241, "outcome": "booked", "callTimestamp": "2026-06-04T09:00:00Z", "scenario": "perfect",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning, is this Carol Jenkins?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Yes, hi!","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Carol! Sam from Cool Air Services. We're scheduling summer HVAC maintenance. Is this something you'd be interested in?","timestamp":9,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"Probably, yes. My unit is a few years old and I haven't had it serviced in a while.","timestamp":22,"confidence":0.93},
+      {"turnIndex":4,"speaker":"agent","text":"Good that you're thinking ahead! Can I ask — is it a central air system, a heat pump, or a mini-split? And roughly how old is it?","timestamp":34,"confidence":0.96},
+      {"turnIndex":5,"speaker":"human","text":"Central air. I think it's about 7 years old. Installed the year we moved in.","timestamp":49,"confidence":0.93},
+      {"turnIndex":6,"speaker":"agent","text":"Good to know. At 7 years it's definitely worth staying on top of maintenance to keep it running efficiently. The visit is $89. I'd also mention — if you want year-round coverage, our annual plan is $149 and covers two visits a year, which works out to a much better value.","timestamp":61,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"Oh, the annual plan sounds smarter actually. Let's do that.","timestamp":85,"confidence":0.95},
+      {"turnIndex":8,"speaker":"agent","text":"Great choice! I have Tuesday at 2pm or Friday at 10am for the first visit. Which works?","timestamp":93,"confidence":0.96},
+      {"turnIndex":9,"speaker":"human","text":"Friday at 10 would be perfect.","timestamp":107,"confidence":0.95},
+      {"turnIndex":10,"speaker":"agent","text":"Friday at 10am, confirmed! I'll set you up on the annual plan and send over the details. Thanks Carol!","timestamp":113,"confidence":0.97}
+    ]
+  }
+]

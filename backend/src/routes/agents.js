@@ -1,0 +1,468 @@
+const express = require('express')
+const db = require('../db/database')
+const httpError = require('../utils/httpError')
+const AnalysisService = require('../services/AnalysisService')
+const RecommendationService = require('../services/RecommendationService')
+const NarrativeService = require('../services/NarrativeService')
+const logger = require('../logger')
+
+const router = express.Router()
+const analysisService = new AnalysisService()
+
+// GET /api/agents
+router.get('/', (_req, res, next) => {
+  try {
+    const agents = db.prepare('SELECT id, name, goal, created_at FROM agents ORDER BY name').all()
+
+    const result = agents.map((agent) => {
+      const scoreRows = db.prepare(`
+        SELECT a.overall_score FROM analyses a
+        JOIN calls c ON c.id = a.call_id
+        WHERE c.agent_id = ? ORDER BY a.analyzed_at DESC LIMIT 30
+      `).all(agent.id)
+
+      const healthScore = scoreRows.length
+        ? Math.round(scoreRows.reduce((s, r) => s + r.overall_score, 0) / scoreRows.length)
+        : 0
+
+      const totalCalls = db.prepare('SELECT COUNT(*) as n FROM calls WHERE agent_id = ?').get(agent.id).n
+
+      return { ...agent, healthScore, totalCalls }
+    })
+
+    res.json({ agents: result })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// GET /api/agents/:id
+router.get('/:id', (req, res, next) => {
+  try {
+    const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(req.params.id)
+    if (!agent) return next(httpError('AGENT_NOT_FOUND', `Agent ${req.params.id} not found`, 404))
+
+    const kpiDefinitions = db
+      .prepare('SELECT id, name, label, weight, threshold, description FROM kpi_definitions WHERE agent_id = ? ORDER BY weight DESC')
+      .all(agent.id)
+
+    // Health score + trend
+    const scoreRows = db.prepare(`
+      SELECT a.overall_score FROM analyses a
+      JOIN calls c ON c.id = a.call_id
+      WHERE c.agent_id = ? ORDER BY a.analyzed_at DESC LIMIT 30
+    `).all(agent.id)
+
+    const healthScore = scoreRows.length
+      ? Math.round(scoreRows.reduce((s, r) => s + r.overall_score, 0) / scoreRows.length)
+      : 0
+
+    const recent = scoreRows.slice(0, 7)
+    const previous = scoreRows.slice(7, 14)
+    const recentAvg = recent.length ? recent.reduce((s, r) => s + r.overall_score, 0) / recent.length : 0
+    const prevAvg = previous.length ? previous.reduce((s, r) => s + r.overall_score, 0) / previous.length : 0
+    const trend = prevAvg === 0 ? 'stable' : recentAvg > prevAvg + 3 ? 'up' : recentAvg < prevAvg - 3 ? 'down' : 'stable'
+
+    // last7Days sparkline (last 7 individual call scores)
+    const last7Days = scoreRows.slice(0, 7).map((r) => r.overall_score).reverse()
+
+    // Average KPI scores across last 10 analyses
+    const kpiRows = db.prepare(`
+      SELECT a.kpi_scores_json FROM analyses a
+      JOIN calls c ON c.id = a.call_id
+      WHERE c.agent_id = ? ORDER BY a.analyzed_at DESC LIMIT 10
+    `).all(agent.id)
+
+    const kpiScores = kpiRows.length ? averageKpis(kpiRows) : {}
+
+    // Status distribution
+    const statusRows = db.prepare(`
+      SELECT a.status FROM analyses a
+      JOIN calls c ON c.id = a.call_id
+      WHERE c.agent_id = ?
+      ORDER BY a.analyzed_at DESC LIMIT 30
+    `).all(agent.id)
+
+    const statusDistribution = statusRows.reduce(
+      (acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc },
+      { pass: 0, warning: 0, fail: 0 }
+    )
+
+    // Worst KPI: lowest score relative to its threshold
+    let worstKpi = null
+    let worstGap = 0
+    for (const def of kpiDefinitions) {
+      const score = kpiScores[def.name]
+      if (score === undefined) continue
+      const gap = score - def.threshold
+      if (gap < worstGap) {
+        worstGap = gap
+        worstKpi = { name: def.name, label: def.label, score, threshold: def.threshold, gap }
+      }
+    }
+
+    res.json({
+      id: agent.id,
+      name: agent.name,
+      goal: agent.goal,
+      script: agent.script,
+      kpiDefinitions,
+      performance: { healthScore, trend, last7Days, kpiScores, statusDistribution, worstKpi },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// GET /api/agents/:id/calls?page=1&limit=20&status=all
+router.get('/:id/calls', (req, res, next) => {
+  try {
+    const agent = db.prepare('SELECT id FROM agents WHERE id = ?').get(req.params.id)
+    if (!agent) return next(httpError('AGENT_NOT_FOUND', `Agent ${req.params.id} not found`, 404))
+
+    const page = Math.max(1, parseInt(req.query.page) || 1)
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20))
+    const status = req.query.status || 'all'
+    const offset = (page - 1) * limit
+
+    const statusFilter = status === 'all' ? '' : `AND a.status = '${status}'`
+
+    const total = db.prepare(`
+      SELECT COUNT(*) as n FROM calls c
+      LEFT JOIN analyses a ON a.call_id = c.id
+      WHERE c.agent_id = ? ${statusFilter}
+    `).get(req.params.id).n
+
+    const calls = db.prepare(`
+      SELECT
+        c.id, c.agent_id, c.caller_number, c.duration, c.outcome,
+        c.analysis_status, c.call_timestamp,
+        a.overall_score, a.status,
+        a.recommendations_json
+      FROM calls c
+      LEFT JOIN analyses a ON a.call_id = c.id
+      WHERE c.agent_id = ? ${statusFilter}
+      ORDER BY c.call_timestamp DESC
+      LIMIT ? OFFSET ?
+    `).all(req.params.id, limit, offset)
+
+    const result = calls.map((c) => {
+      const topIssue = c.recommendations_json
+        ? (JSON.parse(c.recommendations_json)[0]?.title ?? null)
+        : null
+      // eslint-disable-next-line no-unused-vars
+      const { recommendations_json: _rj, ...rest } = c
+      return { ...rest, topIssue }
+    })
+
+    res.json({ total, page, limit, calls: result })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// GET /api/agents/:id/insights
+// Cross-call AI analysis — generated on demand, cached in agent_insights table
+router.get('/:id/insights', async (req, res, next) => {
+  try {
+    const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(req.params.id)
+    if (!agent) return next(httpError('AGENT_NOT_FOUND', `Agent ${req.params.id} not found`, 404))
+
+    // Check cache — return most recent cached insight if it exists
+    const cached = db.prepare(`
+      SELECT summary, patterns_json, use_action_summary_json, generated_at, call_count
+      FROM agent_insights WHERE agent_id = ?
+      ORDER BY generated_at DESC LIMIT 1
+    `).get(agent.id)
+
+    if (cached) {
+      logger.info({ agentId: agent.id }, 'insights: returning cached result')
+      return res.json({
+        agentId: agent.id,
+        generatedAt: cached.generated_at,
+        callCount: cached.call_count,
+        summary: cached.summary,
+        patternedIssues: JSON.parse(cached.patterns_json),
+        useActionSummary: JSON.parse(cached.use_action_summary_json),
+      })
+    }
+
+    // No cache — generate now (OpenAI call)
+    logger.info({ agentId: agent.id }, 'insights: generating (no cache)')
+    const result = await analysisService.analyzeAgentInsights(agent)
+
+    if (!result) {
+      return res.json({
+        agentId: agent.id,
+        message: 'No analysed calls yet — run analysis first',
+        patternedIssues: [],
+        useActionSummary: {},
+      })
+    }
+
+    res.json({
+      agentId: agent.id,
+      generatedAt: new Date().toISOString(),
+      callCount: result.callCount || 0,
+      summary: result.summary,
+      patternedIssues: result.patterns || [],
+      useActionSummary: result.useActionSummary || {},
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+function averageKpis(rows) {
+  const totals = {}
+  const counts = {}
+  for (const row of rows) {
+    const kpis = JSON.parse(row.kpi_scores_json)
+    for (const [key, val] of Object.entries(kpis)) {
+      totals[key] = (totals[key] || 0) + val
+      counts[key] = (counts[key] || 0) + 1
+    }
+  }
+  const result = {}
+  for (const key of Object.keys(totals)) {
+    result[key] = Math.round(totals[key] / counts[key])
+  }
+  return result
+}
+
+// GET /api/agents/:id/flywheel
+// Per-agent breakdown of the 5-stage Validation Flywheel.
+// Each stage returns metrics specific to this agent so users can see exactly
+// where the loop is or isn't turning for one agent.
+router.get('/:id/flywheel', (req, res, next) => {
+  try {
+    const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(req.params.id)
+    if (!agent) return next(httpError('AGENT_NOT_FOUND', `Agent ${req.params.id} not found`, 404))
+
+    // ── Stage 1: INGEST ────────────────────────────────────────────────
+    const ingest = db.prepare(`
+      SELECT
+        COUNT(*) as totalCalls,
+        SUM(CASE WHEN analysis_status = 'completed' THEN 1 ELSE 0 END) as analysed,
+        SUM(CASE WHEN analysis_status = 'pending'   THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN analysis_status = 'failed'    THEN 1 ELSE 0 END) as failed,
+        MAX(call_timestamp) as lastCallAt,
+        MIN(call_timestamp) as firstCallAt
+      FROM calls WHERE agent_id = ?
+    `).get(agent.id)
+
+    // ── Stage 2: SCORE ────────────────────────────────────────────────
+    const score = db.prepare(`
+      SELECT
+        COUNT(*) as totalScored,
+        ROUND(AVG(overall_score)) as avgScore,
+        MIN(overall_score) as minScore,
+        MAX(overall_score) as maxScore,
+        SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as passCount,
+        SUM(CASE WHEN status = 'warning' THEN 1 ELSE 0 END) as warningCount,
+        SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as failCount
+      FROM analyses a JOIN calls c ON c.id = a.call_id
+      WHERE c.agent_id = ?
+    `).get(agent.id)
+
+    // ── Stage 3: RECOMMEND ────────────────────────────────────────────
+    const recCounts = db.prepare(`
+      SELECT status, COUNT(*) as n FROM recommendations
+      WHERE agent_id = ? GROUP BY status
+    `).all(agent.id)
+    const recStatusMap = { active: 0, applied: 0, dismissed: 0 }
+    recCounts.forEach((r) => { recStatusMap[r.status] = r.n })
+
+    const topActiveRecs = db.prepare(`
+      SELECT id, title, severity, type, suggested_change, occurrence_count, first_seen_at
+      FROM recommendations
+      WHERE agent_id = ? AND status = 'active'
+      ORDER BY
+        CASE severity WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END,
+        occurrence_count DESC
+      LIMIT 5
+    `).all(agent.id)
+
+    // ── Stage 4: APPLY ────────────────────────────────────────────────
+    const promptVersions = db.prepare(`
+      SELECT id, prompt_hash, first_seen_at, last_seen_at, call_count,
+             SUBSTR(prompt_text, 1, 240) as preview, LENGTH(prompt_text) as fullLength
+      FROM agent_prompt_versions
+      WHERE agent_id = ? ORDER BY first_seen_at DESC
+    `).all(agent.id)
+
+    const appliedRecs = db.prepare(`
+      SELECT r.id, r.title, r.severity, r.applied_at,
+             apv.prompt_hash as appliedToHash
+      FROM recommendations r
+      LEFT JOIN agent_prompt_versions apv ON apv.id = r.applied_prompt_version_id
+      WHERE r.agent_id = ? AND r.status = 'applied' AND r.outcome_computed_at IS NULL
+      ORDER BY r.applied_at DESC
+    `).all(agent.id)
+
+    // ── Stage 5: MEASURE ─────────────────────────────────────────────
+    const lifecycle = RecommendationService.getLifecycleSummary(agent.id)
+    const measured = lifecycle.measured
+
+    res.json({
+      agentId: agent.id,
+      agentName: agent.name,
+      agentGoal: agent.goal,
+      currentPromptLength: (agent.script || '').length,
+      stages: {
+        ingest: {
+          label: 'Ingest',
+          totalCalls: ingest.totalCalls || 0,
+          analysed: ingest.analysed || 0,
+          pending: ingest.pending || 0,
+          failed: ingest.failed || 0,
+          firstCallAt: ingest.firstCallAt,
+          lastCallAt: ingest.lastCallAt,
+          source: 'HL API: /voice-ai/dashboard/call-logs',
+        },
+        score: {
+          label: 'Score',
+          totalScored: score.totalScored || 0,
+          avgScore: score.avgScore || 0,
+          minScore: score.minScore,
+          maxScore: score.maxScore,
+          passCount: score.passCount || 0,
+          warningCount: score.warningCount || 0,
+          failCount: score.failCount || 0,
+          scoringMethod: 'OpenAI gpt-4o-mini · json_schema · 6 KPIs weighted',
+        },
+        recommend: {
+          label: 'Recommend',
+          active: recStatusMap.active,
+          applied: recStatusMap.applied,
+          dismissed: recStatusMap.dismissed,
+          total: recStatusMap.active + recStatusMap.applied + recStatusMap.dismissed,
+          topActive: topActiveRecs.map((r) => ({
+            id: r.id,
+            title: r.title,
+            severity: r.severity,
+            type: r.type,
+            suggestedChange: r.suggested_change,
+            occurrenceCount: r.occurrence_count,
+          })),
+        },
+        apply: {
+          label: 'Apply',
+          promptVersionCount: promptVersions.length,
+          currentVersion: promptVersions[0] || null,
+          history: promptVersions.slice(0, 5),
+          appliedRecs,
+          detectionMethod: 'SHA-256 hash of prompt+goal — change detected on next Sync All',
+        },
+        measure: {
+          label: 'Measure',
+          totalMeasured: lifecycle.totalMeasured,
+          improvedCount: lifecycle.improvedCount,
+          regressedCount: lifecycle.regressedCount,
+          flatCount: lifecycle.flatCount,
+          successRate: lifecycle.successRate,
+          outcomes: measured.slice(0, 5).map((m) => ({
+            id: m.id,
+            title: m.title,
+            severity: m.severity,
+            appliedAt: m.applied_at,
+            before: m.before_avg_score,
+            after: m.after_avg_score,
+            beforeN: m.before_sample_size,
+            afterN: m.after_sample_size,
+            delta: Math.round(m.delta * 10) / 10,
+          })),
+        },
+      },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// PUT /api/agents/:id/kpis
+// Update weight and/or threshold on this agent's KPI definitions.
+// Body: { kpis: [{ id, weight, threshold }] }
+// Validation: weights across ALL of this agent's KPIs must sum to 1.0 ±0.01
+router.put('/:id/kpis', (req, res, next) => {
+  try {
+    const agent = db.prepare('SELECT id FROM agents WHERE id = ?').get(req.params.id)
+    if (!agent) return next(httpError('AGENT_NOT_FOUND', `Agent ${req.params.id} not found`, 404))
+
+    const updates = Array.isArray(req.body?.kpis) ? req.body.kpis : null
+    if (!updates || updates.length === 0) {
+      return next(httpError('INVALID_BODY', 'kpis array required', 400))
+    }
+
+    const existing = db.prepare('SELECT id, weight, threshold FROM kpi_definitions WHERE agent_id = ?').all(agent.id)
+    if (existing.length === 0) {
+      return next(httpError('NO_KPIS', 'This agent has no KPI definitions to update', 400))
+    }
+    const existingMap = Object.fromEntries(existing.map((k) => [k.id, k]))
+
+    // Build the post-update set so we can validate the weight sum BEFORE writing
+    const postUpdate = existing.map((k) => {
+      const u = updates.find((x) => x.id === k.id)
+      return {
+        id:        k.id,
+        weight:    u && Number.isFinite(u.weight)    ? Number(u.weight)    : k.weight,
+        threshold: u && Number.isInteger(u.threshold) ? u.threshold        : k.threshold,
+      }
+    })
+
+    for (const k of postUpdate) {
+      if (k.weight < 0 || k.weight > 1) {
+        return next(httpError('INVALID_WEIGHT', `weight for ${k.id} must be in [0, 1]`, 400))
+      }
+      if (k.threshold < 0 || k.threshold > 100) {
+        return next(httpError('INVALID_THRESHOLD', `threshold for ${k.id} must be in [0, 100]`, 400))
+      }
+    }
+
+    const sum = postUpdate.reduce((s, k) => s + k.weight, 0)
+    if (Math.abs(sum - 1.0) > 0.01) {
+      return next(httpError('INVALID_WEIGHT_SUM', `weights must sum to 1.0 — got ${sum.toFixed(3)}`, 400))
+    }
+
+    const stmt = db.prepare('UPDATE kpi_definitions SET weight = ?, threshold = ? WHERE id = ? AND agent_id = ?')
+    db.exec('BEGIN')
+    try {
+      for (const k of postUpdate) {
+        if (existingMap[k.id].weight !== k.weight || existingMap[k.id].threshold !== k.threshold) {
+          stmt.run(k.weight, k.threshold, k.id, agent.id)
+        }
+      }
+      db.exec('COMMIT')
+    } catch (e) {
+      db.exec('ROLLBACK')
+      throw e
+    }
+
+    const refreshed = db
+      .prepare('SELECT id, name, label, weight, threshold, description FROM kpi_definitions WHERE agent_id = ? ORDER BY weight DESC')
+      .all(agent.id)
+
+    logger.info({ agentId: agent.id, count: postUpdate.length }, 'kpis: updated')
+    res.json({ agentId: agent.id, kpiDefinitions: refreshed })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// GET /api/agents/:id/flywheel/narrative?days=30
+// Per-agent flywheel in the narrative shape (what/why/evidence/action per stage).
+// Powers the horizontal 5-card panel on Agent Detail.
+router.get('/:id/flywheel/narrative', (req, res, next) => {
+  try {
+    const agent = db.prepare('SELECT id FROM agents WHERE id = ?').get(req.params.id)
+    if (!agent) return next(httpError('AGENT_NOT_FOUND', `Agent ${req.params.id} not found`, 404))
+
+    const days = Math.min(90, Math.max(1, parseInt(req.query.days) || 30))
+    const narratives = NarrativeService.buildForAgent(agent.id, { days })
+    res.json({ agentId: agent.id, window: { days }, narratives })
+  } catch (err) {
+    next(err)
+  }
+})
+
+module.exports = router

@@ -1,0 +1,16 @@
+{
+  "id": "call_003_demo_01", "agentId": "agent_003", "callerNumber": "+15550399",
+  "duration": 118, "outcome": "no_booking", "callTimestamp": "2026-06-05T14:30:00Z",
+  "transcript": [
+    {"turnIndex":0,"speaker":"agent","text":"Hi, is this Paul Harrison?","timestamp":0,"confidence":0.96},
+    {"turnIndex":1,"speaker":"human","text":"Yeah, that's me.","timestamp":6,"confidence":0.92},
+    {"turnIndex":2,"speaker":"agent","text":"Hi Paul! Sam from Cool Air Services. We're scheduling HVAC maintenance visits. Would you be interested in getting your system serviced?","timestamp":9,"confidence":0.95},
+    {"turnIndex":3,"speaker":"human","text":"Maybe. What does it cost?","timestamp":23,"confidence":0.91},
+    {"turnIndex":4,"speaker":"agent","text":"The standard visit is $89.","timestamp":30,"confidence":0.96},
+    {"turnIndex":5,"speaker":"human","text":"That seems expensive. I saw a competitor advertising $55 for the same thing.","timestamp":36,"confidence":0.88},
+    {"turnIndex":6,"speaker":"agent","text":"That's our standard rate for a comprehensive visit.","timestamp":49,"confidence":0.93},
+    {"turnIndex":7,"speaker":"human","text":"Is there anything you can do on the price?","timestamp":56,"confidence":0.88},
+    {"turnIndex":8,"speaker":"agent","text":"Unfortunately not, no.","timestamp":65,"confidence":0.92},
+    {"turnIndex":9,"speaker":"human","text":"Okay, I'll pass then. Thanks.","timestamp":70,"confidence":0.90}
+  ]
+}

@@ -1,0 +1,162 @@
+[
+  {
+    "id": "call_001_01", "agentId": "agent_001", "callerNumber": "+15550101",
+    "duration": 198, "outcome": "booked", "callTimestamp": "2026-05-20T09:15:00Z", "scenario": "perfect",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, this is Alex calling from Bright Smile Dental. Am I speaking with Maria?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, this is Maria.","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Great, Maria! I'm calling because you recently filled out a form on our website about scheduling a new patient appointment. Is that something you're still interested in?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Oh yes, I've been meaning to get in for a cleaning and checkup. It's been a while.","timestamp":18,"confidence":0.93},
+      {"turnIndex":4,"speaker":"agent","text":"Wonderful! We'd love to get you in. Before I check our schedule, do you have dental insurance by any chance?","timestamp":31,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"Yes, I have Delta Dental through my employer.","timestamp":40,"confidence":0.96},
+      {"turnIndex":6,"speaker":"agent","text":"Perfect — we're in-network with Delta Dental, so your new patient exam and cleaning should be fully or mostly covered. I have openings this Thursday at 2pm or next Tuesday at 10am. Which works better for you?","timestamp":46,"confidence":0.97},
+      {"turnIndex":7,"speaker":"human","text":"Thursday at 2 works great actually.","timestamp":63,"confidence":0.95},
+      {"turnIndex":8,"speaker":"agent","text":"Excellent! I've got you booked for Thursday at 2pm. You'll receive a text confirmation shortly with our address. Is there anything else I can help you with today?","timestamp":69,"confidence":0.97},
+      {"turnIndex":9,"speaker":"human","text":"No, that's all. Thank you so much!","timestamp":83,"confidence":0.96},
+      {"turnIndex":10,"speaker":"agent","text":"You're very welcome, Maria. We look forward to seeing you Thursday. Have a wonderful day!","timestamp":89,"confidence":0.98}
+    ]
+  },
+  {
+    "id": "call_001_02", "agentId": "agent_001", "callerNumber": "+15550102",
+    "duration": 231, "outcome": "booked", "callTimestamp": "2026-05-21T11:30:00Z", "scenario": "perfect",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning, this is Alex from Bright Smile Dental. Could I speak with David Chen?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Speaking.","timestamp":7,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Hi David! I'm following up on your appointment inquiry. We'd love to get you scheduled for a new patient visit. Is now a good time?","timestamp":10,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Sure, yeah. I've been putting this off for a bit too long honestly.","timestamp":20,"confidence":0.93},
+      {"turnIndex":4,"speaker":"agent","text":"Ha, you're definitely not alone there. Do you currently have dental insurance?","timestamp":32,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"I do — MetLife.","timestamp":40,"confidence":0.96},
+      {"turnIndex":6,"speaker":"agent","text":"Great news, we accept MetLife. For new patients your exam and X-rays are typically covered. Do you have any specific concerns I should note for the dentist, or is this more of a general checkup?","timestamp":44,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"Just a general checkup and cleaning. Maybe a quick look at one tooth that's been slightly sensitive on the right side.","timestamp":57,"confidence":0.92},
+      {"turnIndex":8,"speaker":"agent","text":"Absolutely, I'll note that for the dentist. I have Wednesday at 9am or Friday at 3pm available. Which do you prefer?","timestamp":73,"confidence":0.97},
+      {"turnIndex":9,"speaker":"human","text":"Friday at 3 would work well.","timestamp":84,"confidence":0.95},
+      {"turnIndex":10,"speaker":"agent","text":"Wonderful, David! You're all set for Friday at 3pm. A confirmation text is on its way. We'll make sure to take a look at that sensitive tooth too.","timestamp":90,"confidence":0.97},
+      {"turnIndex":11,"speaker":"human","text":"Perfect, thanks a lot.","timestamp":104,"confidence":0.96},
+      {"turnIndex":12,"speaker":"agent","text":"Our pleasure! See you Friday. Have a great rest of your day!","timestamp":108,"confidence":0.98}
+    ]
+  },
+  {
+    "id": "call_001_03", "agentId": "agent_001", "callerNumber": "+15550103",
+    "duration": 142, "outcome": "no_booking", "callTimestamp": "2026-05-22T14:00:00Z", "scenario": "price_obj",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Sarah Williams?","timestamp":0,"confidence":0.96},
+      {"turnIndex":1,"speaker":"human","text":"Yeah, that's me.","timestamp":5,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Sarah, this is Alex from Bright Smile Dental. I'm calling about your appointment inquiry. Are you still interested in coming in?","timestamp":8,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Possibly, yeah. How much does a new patient appointment cost?","timestamp":19,"confidence":0.93},
+      {"turnIndex":4,"speaker":"agent","text":"The new patient exam and X-rays are $150.","timestamp":27,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"Hmm, that's a bit more than I was expecting. I'm not really in a position for that right now.","timestamp":33,"confidence":0.92},
+      {"turnIndex":6,"speaker":"agent","text":"I understand. The exam is $150.","timestamp":46,"confidence":0.95},
+      {"turnIndex":7,"speaker":"human","text":"Yeah, I'll have to pass for now. Maybe another time.","timestamp":52,"confidence":0.91},
+      {"turnIndex":8,"speaker":"agent","text":"No problem at all. Have a good day.","timestamp":61,"confidence":0.96}
+    ]
+  },
+  {
+    "id": "call_001_04", "agentId": "agent_001", "callerNumber": "+15550104",
+    "duration": 167, "outcome": "no_booking", "callTimestamp": "2026-05-23T10:45:00Z", "scenario": "price_obj",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, this is Alex from Bright Smile Dental. Am I speaking with Kevin Park?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, hi.","timestamp":7,"confidence":0.93},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Kevin! I'm reaching out about your new patient appointment inquiry. Are you still looking to schedule?","timestamp":10,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"I was, but I wanted to know the cost upfront before committing to anything.","timestamp":21,"confidence":0.92},
+      {"turnIndex":4,"speaker":"agent","text":"Sure, the new patient exam with X-rays is $150.","timestamp":33,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"That seems pretty expensive honestly. I've seen other places that are much cheaper.","timestamp":40,"confidence":0.91},
+      {"turnIndex":6,"speaker":"agent","text":"I understand. We do offer comprehensive care.","timestamp":52,"confidence":0.94},
+      {"turnIndex":7,"speaker":"human","text":"I'm just not sure it's worth it right now. Do you have any sort of discount?","timestamp":58,"confidence":0.90},
+      {"turnIndex":8,"speaker":"agent","text":"We don't currently have a discount promotion, no.","timestamp":69,"confidence":0.95},
+      {"turnIndex":9,"speaker":"human","text":"Okay, I think I'll hold off then.","timestamp":77,"confidence":0.93},
+      {"turnIndex":10,"speaker":"agent","text":"Alright, no problem. Feel free to call us if you change your mind.","timestamp":84,"confidence":0.96}
+    ]
+  },
+  {
+    "id": "call_001_05", "agentId": "agent_001", "callerNumber": "+15550105",
+    "duration": 204, "outcome": "booked", "callTimestamp": "2026-05-26T09:00:00Z", "scenario": "missed_upsell",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning! Is this Priya Nair?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, hi!","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Priya, this is Alex from Bright Smile Dental calling about your appointment inquiry. Still interested in scheduling?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Definitely. I've been wanting to get my teeth properly cleaned. Honestly I'd love for them to look a bit brighter too if possible.","timestamp":20,"confidence":0.94},
+      {"turnIndex":4,"speaker":"agent","text":"Great! Do you have dental insurance?","timestamp":35,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"Yes, BlueCross BlueShield.","timestamp":41,"confidence":0.96},
+      {"turnIndex":6,"speaker":"agent","text":"Perfect, we accept that. I have Thursday at 11am or Friday at 2pm available. Which works for you?","timestamp":45,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"Thursday at 11 works.","timestamp":56,"confidence":0.95},
+      {"turnIndex":8,"speaker":"agent","text":"You're all set for Thursday at 11am! A confirmation text is coming your way shortly.","timestamp":60,"confidence":0.97},
+      {"turnIndex":9,"speaker":"human","text":"Great, thank you!","timestamp":71,"confidence":0.96},
+      {"turnIndex":10,"speaker":"agent","text":"Thank you Priya! See you Thursday!","timestamp":75,"confidence":0.97}
+    ]
+  },
+  {
+    "id": "call_001_06", "agentId": "agent_001", "callerNumber": "+15550106",
+    "duration": 152, "outcome": "booked", "callTimestamp": "2026-05-27T15:30:00Z", "scenario": "off_script",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, this is Alex from Bright Smile Dental. Is this Tom Rivera?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes.","timestamp":7,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Great! I'm calling about your appointment inquiry. I have openings Monday at 1pm or Wednesday at 4pm. Which would you prefer?","timestamp":10,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Uh, Monday works I guess. Do you take my insurance?","timestamp":22,"confidence":0.92},
+      {"turnIndex":4,"speaker":"agent","text":"What insurance do you have?","timestamp":31,"confidence":0.96},
+      {"turnIndex":5,"speaker":"human","text":"Cigna.","timestamp":36,"confidence":0.95},
+      {"turnIndex":6,"speaker":"agent","text":"Yes we do accept Cigna. So Monday at 1pm works?","timestamp":39,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"Yeah, sure.","timestamp":47,"confidence":0.93},
+      {"turnIndex":8,"speaker":"agent","text":"Wonderful, you're booked for Monday at 1pm. See you then!","timestamp":50,"confidence":0.97}
+    ]
+  },
+  {
+    "id": "call_001_07", "agentId": "agent_001", "callerNumber": "+15550107",
+    "duration": 61, "outcome": "dropped", "callTimestamp": "2026-05-28T13:00:00Z", "scenario": "early_drop",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, this is Alex from Bright Smile Dental calling for Lisa Thompson. Is that you?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yeah, hi.","timestamp":7,"confidence":0.93},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Lisa! I'm calling about your appointment inquiry. Are you still looking to schedule a visit?","timestamp":10,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"How much does it cost? I don't have insurance right now.","timestamp":21,"confidence":0.91},
+      {"turnIndex":4,"speaker":"agent","text":"Without insurance the new patient exam and X-rays would be $150.","timestamp":31,"confidence":0.96},
+      {"turnIndex":5,"speaker":"human","text":"Oh, that's too much for me right now. Sorry.","timestamp":40,"confidence":0.90}
+    ]
+  },
+  {
+    "id": "call_001_08", "agentId": "agent_001", "callerNumber": "+15550108",
+    "duration": 189, "outcome": "no_booking", "callTimestamp": "2026-05-29T10:00:00Z", "scenario": "negative_sentiment",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, may I speak with James O'Brien?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"This is him. Who's calling?","timestamp":7,"confidence":0.92},
+      {"turnIndex":2,"speaker":"agent","text":"Hi James, this is Alex from Bright Smile Dental following up on your appointment inquiry.","timestamp":12,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Look, you've called me three times already. I said I'd call you when I was ready.","timestamp":22,"confidence":0.89},
+      {"turnIndex":4,"speaker":"agent","text":"I apologize for that, James. I just wanted to make sure you had a chance to get scheduled. Are you interested in coming in?","timestamp":35,"confidence":0.95},
+      {"turnIndex":5,"speaker":"human","text":"Not if you're going to keep pestering me, no.","timestamp":49,"confidence":0.87},
+      {"turnIndex":6,"speaker":"agent","text":"I completely understand. I'll make a note not to follow up again. If you ever decide you'd like to schedule, our number is on the website.","timestamp":57,"confidence":0.95},
+      {"turnIndex":7,"speaker":"human","text":"Fine. Goodbye.","timestamp":73,"confidence":0.91}
+    ]
+  },
+  {
+    "id": "call_001_09", "agentId": "agent_001", "callerNumber": "+15550109",
+    "duration": 244, "outcome": "booked", "callTimestamp": "2026-06-01T08:45:00Z", "scenario": "perfect",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning, is this Anna Peterson?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes it is, hi.","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Anna! This is Alex from Bright Smile Dental. I'm calling about your new patient appointment inquiry. Is now a good time?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Yes, perfect timing actually. I've been anxious about going to the dentist but I know I need to go.","timestamp":20,"confidence":0.93},
+      {"turnIndex":4,"speaker":"agent","text":"I completely understand that feeling, and I want you to know our team is very gentle with anxious patients. We'll make sure you're comfortable the whole time. Do you have dental insurance?","timestamp":34,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"Yes, I have Aetna.","timestamp":51,"confidence":0.95},
+      {"turnIndex":6,"speaker":"agent","text":"Great, Aetna is fully accepted. Your new patient exam should be covered. I have Tuesday at 3pm or Thursday morning at 9am — our Thursday doctor is particularly known for being great with anxious patients if that would help.","timestamp":55,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"Oh, Thursday morning at 9 sounds great then.","timestamp":73,"confidence":0.95},
+      {"turnIndex":8,"speaker":"agent","text":"Thursday at 9am it is! You'll get a confirmation text shortly. And please don't hesitate to call us beforehand with any questions — we want you to feel totally at ease.","timestamp":79,"confidence":0.97},
+      {"turnIndex":9,"speaker":"human","text":"That's really reassuring, thank you so much.","timestamp":96,"confidence":0.96},
+      {"turnIndex":10,"speaker":"agent","text":"Absolutely! We'll see you Thursday, Anna. Have a wonderful day!","timestamp":103,"confidence":0.98}
+    ]
+  },
+  {
+    "id": "call_001_10", "agentId": "agent_001", "callerNumber": "+15550110",
+    "duration": 178, "outcome": "no_booking", "callTimestamp": "2026-06-02T14:30:00Z", "scenario": "price_obj",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, this is Alex from Bright Smile Dental. Is this Rachel Kim?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Speaking.","timestamp":7,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Rachel! I'm calling about your dental appointment inquiry. Still interested in scheduling?","timestamp":10,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Potentially. What's the cost for a new patient without insurance?","timestamp":21,"confidence":0.92},
+      {"turnIndex":4,"speaker":"agent","text":"Without insurance it's $150 for the full new patient exam and X-rays.","timestamp":31,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"That's pretty steep. Does that go down if I don't need the X-rays?","timestamp":40,"confidence":0.91},
+      {"turnIndex":6,"speaker":"agent","text":"We do recommend X-rays for all new patients, but I understand the budget concern. Some insurances will cover a portion even for out-of-network — do you have any insurance at all?","timestamp":51,"confidence":0.95},
+      {"turnIndex":7,"speaker":"human","text":"No, I'm between jobs right now.","timestamp":69,"confidence":0.90},
+      {"turnIndex":8,"speaker":"agent","text":"I see. Unfortunately I can't go lower than the standard rate.","timestamp":76,"confidence":0.94},
+      {"turnIndex":9,"speaker":"human","text":"Okay, I'll have to wait until I get back on my feet. Thanks though.","timestamp":84,"confidence":0.91},
+      {"turnIndex":10,"speaker":"agent","text":"Of course, Rachel. We'll be here when you're ready. Take care!","timestamp":95,"confidence":0.96}
+    ]
+  }
+]

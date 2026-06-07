@@ -1,0 +1,30 @@
+{
+  "name": "voice-ai-copilot-backend",
+  "version": "1.0.0",
+  "description": "Voice AI Observability Copilot — Node.js backend",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js",
+    "lint": "eslint src/ --ext .js",
+    "lint:fix": "eslint src/ --ext .js --fix",
+    "format": "prettier --write src/",
+    "seed": "node scripts/seed.js",
+    "analyze-all": "node scripts/analyzeAll.js"
+  },
+  "dependencies": {
+    "openai": "^4.52.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "pino": "^8.19.0",
+    "pino-pretty": "^11.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

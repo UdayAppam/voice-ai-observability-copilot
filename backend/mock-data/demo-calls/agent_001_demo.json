@@ -1,0 +1,15 @@
+{
+  "id": "call_001_demo", "agentId": "agent_001", "callerNumber": "+15550199",
+  "duration": 142, "outcome": "no_booking", "callTimestamp": "2026-06-05T15:00:00Z",
+  "transcript": [
+    {"turnIndex":0,"speaker":"agent","text":"Hi, is this Megan Walsh?","timestamp":0,"confidence":0.96},
+    {"turnIndex":1,"speaker":"human","text":"Yes, who's this?","timestamp":5,"confidence":0.91},
+    {"turnIndex":2,"speaker":"agent","text":"Hi Megan, Alex from Bright Smile Dental. Calling about your appointment inquiry.","timestamp":9,"confidence":0.95},
+    {"turnIndex":3,"speaker":"human","text":"Right. How much is the new patient visit?","timestamp":18,"confidence":0.92},
+    {"turnIndex":4,"speaker":"agent","text":"The new patient exam and X-rays are $150.","timestamp":25,"confidence":0.96},
+    {"turnIndex":5,"speaker":"human","text":"That's pricier than I thought. Money is tight right now.","timestamp":32,"confidence":0.89},
+    {"turnIndex":6,"speaker":"agent","text":"Understood, $150 is our rate for new patients.","timestamp":44,"confidence":0.94},
+    {"turnIndex":7,"speaker":"human","text":"Okay, I'll skip it then.","timestamp":52,"confidence":0.90},
+    {"turnIndex":8,"speaker":"agent","text":"Alright, have a nice day.","timestamp":58,"confidence":0.95}
+  ]
+}

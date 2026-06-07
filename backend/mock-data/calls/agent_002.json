@@ -1,0 +1,169 @@
+[
+  {
+    "id": "call_002_01", "agentId": "agent_002", "callerNumber": "+15550201",
+    "duration": 312, "outcome": "booked", "callTimestamp": "2026-05-20T10:00:00Z", "scenario": "perfect",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Michael Torres?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, speaking.","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Michael, this is Jordan from Riverside Realty. You recently inquired about homes in the area — is this still something you're actively pursuing?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Yes, we're looking to buy within the next few months.","timestamp":23,"confidence":0.94},
+      {"turnIndex":4,"speaker":"agent","text":"Great timing! To make sure I show you the right properties, can I ask what price range you're comfortable with?","timestamp":31,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"We're pre-approved up to $550,000.","timestamp":43,"confidence":0.95},
+      {"turnIndex":6,"speaker":"agent","text":"Excellent, that opens up some great options in this market. And are there any specific neighborhoods or school districts you're targeting?","timestamp":49,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"We want good schools — we have two kids. The Westfield district would be ideal.","timestamp":62,"confidence":0.93},
+      {"turnIndex":8,"speaker":"agent","text":"Perfect. Westfield has some great inventory right now. What's your ideal move-in timeline — 30, 60, or 90 days?","timestamp":77,"confidence":0.97},
+      {"turnIndex":9,"speaker":"human","text":"We'd like to be in by end of summer, so maybe 60 days.","timestamp":91,"confidence":0.94},
+      {"turnIndex":10,"speaker":"agent","text":"That's very doable. I have three properties in Westfield within your budget that I'd love to show you. Are you free Saturday morning or Sunday afternoon?","timestamp":101,"confidence":0.96},
+      {"turnIndex":11,"speaker":"human","text":"Saturday morning works great.","timestamp":118,"confidence":0.95},
+      {"turnIndex":12,"speaker":"agent","text":"Wonderful! Let's say Saturday at 10am. I'll send you the property addresses and a calendar invite. Looking forward to meeting you, Michael!","timestamp":123,"confidence":0.97}
+    ]
+  },
+  {
+    "id": "call_002_02", "agentId": "agent_002", "callerNumber": "+15550202",
+    "duration": 287, "outcome": "booked", "callTimestamp": "2026-05-22T14:00:00Z", "scenario": "perfect",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, this is Jordan from Riverside Realty. May I speak with Sandra Lee?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"This is Sandra.","timestamp":7,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Sandra! You inquired about properties through our website. Are you currently in the market to buy?","timestamp":10,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Yes, we are. My husband and I have been looking for a while now.","timestamp":22,"confidence":0.93},
+      {"turnIndex":4,"speaker":"agent","text":"Exciting! What's your comfortable purchase price range, and have you been pre-approved?","timestamp":33,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"We're pre-approved for $480,000 and would prefer to stay around $450,000 if possible.","timestamp":44,"confidence":0.94},
+      {"turnIndex":6,"speaker":"agent","text":"That's a very workable range. Are you flexible on location, or do you have specific areas in mind?","timestamp":58,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"We're open, but prefer something with a bit of yard space. We have a dog.","timestamp":70,"confidence":0.93},
+      {"turnIndex":8,"speaker":"agent","text":"Noted — I have a few listings with good-sized yards that I think you'd love. Are you looking to move in the next 30 days or is this more of a 60-90 day search?","timestamp":82,"confidence":0.97},
+      {"turnIndex":9,"speaker":"human","text":"We're not in a rush but would love to find something in the next two months.","timestamp":98,"confidence":0.93},
+      {"turnIndex":10,"speaker":"agent","text":"Perfect. Can you do a showing this Thursday at 5pm or next Saturday at 11am?","timestamp":110,"confidence":0.97},
+      {"turnIndex":11,"speaker":"human","text":"Thursday at 5 works for us.","timestamp":123,"confidence":0.95},
+      {"turnIndex":12,"speaker":"agent","text":"Thursday at 5pm is confirmed! I'll send over details for two properties with yard space. Really looking forward to it!","timestamp":128,"confidence":0.97}
+    ]
+  },
+  {
+    "id": "call_002_03", "agentId": "agent_002", "callerNumber": "+15550203",
+    "duration": 198, "outcome": "no_booking", "callTimestamp": "2026-05-24T11:00:00Z", "scenario": "price_obj",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Robert Chang?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yeah, who's this?","timestamp":6,"confidence":0.91},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Robert, this is Jordan from Riverside Realty. You reached out about buying a home. Is that still on your radar?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Yeah, but I'm worried about the market right now. Everything seems so overpriced.","timestamp":22,"confidence":0.90},
+      {"turnIndex":4,"speaker":"agent","text":"I understand that concern. What price range were you hoping to stay in?","timestamp":35,"confidence":0.96},
+      {"turnIndex":5,"speaker":"human","text":"Honestly, $350,000 is about our max. But everything I see is way above that.","timestamp":44,"confidence":0.89},
+      {"turnIndex":6,"speaker":"agent","text":"The market is competitive, I won't sugarcoat it. There are some properties at that range though.","timestamp":58,"confidence":0.94},
+      {"turnIndex":7,"speaker":"human","text":"What about down payment requirements? We only have about $25,000 saved up. Is that going to be a problem?","timestamp":68,"confidence":0.88},
+      {"turnIndex":8,"speaker":"agent","text":"That might be tight depending on the property. It's hard to say without knowing more.","timestamp":85,"confidence":0.93},
+      {"turnIndex":9,"speaker":"human","text":"So you can't really help us then.","timestamp":97,"confidence":0.87},
+      {"turnIndex":10,"speaker":"agent","text":"I wouldn't say that. Let me see what we have. Can I call you back with some options?","timestamp":104,"confidence":0.94},
+      {"turnIndex":11,"speaker":"human","text":"Sure, I guess. But honestly we might just wait it out a bit longer.","timestamp":116,"confidence":0.89}
+    ]
+  },
+  {
+    "id": "call_002_04", "agentId": "agent_002", "callerNumber": "+15550204",
+    "duration": 176, "outcome": "no_booking", "callTimestamp": "2026-05-27T09:30:00Z", "scenario": "price_obj",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning! Is this Emily Watson?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, hi.","timestamp":6,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Emily, Jordan here from Riverside Realty. You inquired about homes in the area — still actively looking?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Sort of. I'm not sure we can really afford this market. We're seeing prices that are just out of reach.","timestamp":22,"confidence":0.90},
+      {"turnIndex":4,"speaker":"agent","text":"What range are you working with?","timestamp":36,"confidence":0.96},
+      {"turnIndex":5,"speaker":"human","text":"Around $400,000. But everything decent seems to start at $500,000 or more.","timestamp":40,"confidence":0.89},
+      {"turnIndex":6,"speaker":"agent","text":"There are some options in that range in certain neighborhoods. It depends on what you're flexible on.","timestamp":53,"confidence":0.94},
+      {"turnIndex":7,"speaker":"human","text":"Are you able to show us anything under $420,000 that isn't completely run-down?","timestamp":66,"confidence":0.88},
+      {"turnIndex":8,"speaker":"agent","text":"I'd have to check current inventory. It's a bit limited at that price point right now.","timestamp":79,"confidence":0.93},
+      {"turnIndex":9,"speaker":"human","text":"Honestly it sounds like we're probably priced out. We'll keep renting for now.","timestamp":92,"confidence":0.88},
+      {"turnIndex":10,"speaker":"agent","text":"I understand. The market is challenging. Feel free to reach out when you're ready to revisit.","timestamp":105,"confidence":0.95}
+    ]
+  },
+  {
+    "id": "call_002_05", "agentId": "agent_002", "callerNumber": "+15550205",
+    "duration": 263, "outcome": "booked", "callTimestamp": "2026-05-29T14:00:00Z", "scenario": "missed_upsell",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Daniel Foster?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, speaking.","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Daniel! Jordan from Riverside Realty — you inquired about buying. Are you still in the market?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Yes, we are. We're primarily looking for a place that gives us more space — I work from home now and really need a dedicated home office. And my wife wants a proper garden.","timestamp":22,"confidence":0.93},
+      {"turnIndex":4,"speaker":"agent","text":"Sounds great! What's your budget range?","timestamp":42,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"We're pre-approved up to $520,000.","timestamp":49,"confidence":0.95},
+      {"turnIndex":6,"speaker":"agent","text":"Good range for this market. Do you have preferred neighborhoods?","timestamp":55,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"We're fairly open — Riverside or Elmwood would both work.","timestamp":64,"confidence":0.93},
+      {"turnIndex":8,"speaker":"agent","text":"And what's your timeline?","timestamp":73,"confidence":0.96},
+      {"turnIndex":9,"speaker":"human","text":"Within the next 60 days ideally.","timestamp":78,"confidence":0.94},
+      {"turnIndex":10,"speaker":"agent","text":"I have showings available Friday at 4pm or Saturday at 10am. Which works?","timestamp":83,"confidence":0.97},
+      {"turnIndex":11,"speaker":"human","text":"Saturday at 10am would be great.","timestamp":95,"confidence":0.95},
+      {"turnIndex":12,"speaker":"agent","text":"Perfect! Saturday at 10am. I'll send you some listings to review beforehand.","timestamp":100,"confidence":0.97}
+    ]
+  },
+  {
+    "id": "call_002_06", "agentId": "agent_002", "callerNumber": "+15550206",
+    "duration": 189, "outcome": "booked", "callTimestamp": "2026-06-01T11:00:00Z", "scenario": "off_script",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Carmen Diaz?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, hi!","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Carmen! This is Jordan from Riverside Realty. I'd love to show you some properties. Can you do a showing this week?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Sure, maybe. What areas do you cover?","timestamp":22,"confidence":0.93},
+      {"turnIndex":4,"speaker":"agent","text":"We cover most of the greater Riverside area. What neighborhoods interest you?","timestamp":30,"confidence":0.96},
+      {"turnIndex":5,"speaker":"human","text":"Probably Elmwood or Oak Hills. What's the price range like there?","timestamp":40,"confidence":0.92},
+      {"turnIndex":6,"speaker":"agent","text":"Both are great. I have some listings I think you'd like. Can you do Thursday at 6pm or Saturday at 2pm?","timestamp":52,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"Thursday at 6 works.","timestamp":65,"confidence":0.95},
+      {"turnIndex":8,"speaker":"agent","text":"Thursday at 6pm, confirmed! I'll send over the property details.","timestamp":69,"confidence":0.97}
+    ]
+  },
+  {
+    "id": "call_002_07", "agentId": "agent_002", "callerNumber": "+15550207",
+    "duration": 48, "outcome": "dropped", "callTimestamp": "2026-06-02T09:00:00Z", "scenario": "early_drop",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Patrick Sullivan?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes. Look, now is not a great time.","timestamp":7,"confidence":0.90},
+      {"turnIndex":2,"speaker":"agent","text":"I understand — I'll just take a minute of your time. You inquired about homes in the area—","timestamp":14,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"Sorry, I have to go. I'll call back when I'm ready.","timestamp":25,"confidence":0.88}
+    ]
+  },
+  {
+    "id": "call_002_08", "agentId": "agent_002", "callerNumber": "+15550208",
+    "duration": 247, "outcome": "no_booking", "callTimestamp": "2026-06-03T14:00:00Z", "scenario": "negative_sentiment",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, may I speak with Grace Holland?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"That's me. What's this about?","timestamp":7,"confidence":0.91},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Grace, Jordan from Riverside Realty. You inquired about buying a home. I wanted to follow up.","timestamp":11,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"We did, months ago. Our last realtor completely wasted our time with bad listings and then disappeared.","timestamp":23,"confidence":0.87},
+      {"turnIndex":4,"speaker":"agent","text":"I'm really sorry to hear that experience. I'd love the chance to do better. What went wrong with the previous process?","timestamp":39,"confidence":0.95},
+      {"turnIndex":5,"speaker":"human","text":"They kept showing us properties way over our budget and wouldn't listen when we said what we actually needed.","timestamp":53,"confidence":0.86},
+      {"turnIndex":6,"speaker":"agent","text":"That's completely unacceptable. I always start by understanding exactly what you need and your firm budget. Would you be willing to give us a chance?","timestamp":69,"confidence":0.95},
+      {"turnIndex":7,"speaker":"human","text":"I don't know. We're pretty burned at this point. Maybe. I'd need to talk to my husband first.","timestamp":87,"confidence":0.87},
+      {"turnIndex":8,"speaker":"agent","text":"Of course, totally understand. Here's my direct number — whenever you're ready, no pressure at all.","timestamp":103,"confidence":0.96}
+    ]
+  },
+  {
+    "id": "call_002_09", "agentId": "agent_002", "callerNumber": "+15550209",
+    "duration": 198, "outcome": "escalated", "callTimestamp": "2026-06-04T10:00:00Z", "scenario": "escalation",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Victor Morales?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes.","timestamp":6,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Victor! Jordan from Riverside Realty. You reached out about buying a property. Are you still in the market?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Yes, but our situation is a little complicated. We're in the middle of a divorce and trying to figure out how to purchase a property in just my name going forward.","timestamp":22,"confidence":0.90},
+      {"turnIndex":4,"speaker":"agent","text":"I see, that is a bit more complex. Do you have a sense of your budget?","timestamp":42,"confidence":0.94},
+      {"turnIndex":5,"speaker":"human","text":"I will once the settlement is finalized but that's still a few weeks out. Can I still start looking?","timestamp":52,"confidence":0.89},
+      {"turnIndex":6,"speaker":"agent","text":"Honestly there are some legal and financial nuances here that I'm not fully equipped to advise on. I want to make sure you're protected.","timestamp":66,"confidence":0.94},
+      {"turnIndex":7,"speaker":"human","text":"So what do you suggest?","timestamp":82,"confidence":0.90},
+      {"turnIndex":8,"speaker":"agent","text":"Let me connect you with our senior agent who handles more complex purchase situations. They'd be better placed to guide you through this properly.","timestamp":87,"confidence":0.95},
+      {"turnIndex":9,"speaker":"human","text":"Okay, that would be helpful actually. Thank you.","timestamp":104,"confidence":0.93}
+    ]
+  },
+  {
+    "id": "call_002_10", "agentId": "agent_002", "callerNumber": "+15550210",
+    "duration": 334, "outcome": "booked", "callTimestamp": "2026-06-05T09:00:00Z", "scenario": "perfect",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning, is this Helen Zhao?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, speaking.","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Helen! Jordan from Riverside Realty. You inquired about homes in the area. Are you actively looking?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Yes, we are. We've been looking for about a month.","timestamp":22,"confidence":0.94},
+      {"turnIndex":4,"speaker":"agent","text":"Great. What price range are you working with, and are you pre-approved?","timestamp":31,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"Pre-approved up to $600,000. We'd rather stay around $550,000.","timestamp":41,"confidence":0.95},
+      {"turnIndex":6,"speaker":"agent","text":"Excellent. Any preferred neighborhoods or specific requirements?","timestamp":53,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"We want good schools and at least 3 bedrooms. We have a toddler and are planning on another.","timestamp":62,"confidence":0.93},
+      {"turnIndex":8,"speaker":"agent","text":"That's completely doable in your range. Are you thinking 30 or 60 days for move-in?","timestamp":77,"confidence":0.97},
+      {"turnIndex":9,"speaker":"human","text":"60 days ideally.","timestamp":90,"confidence":0.95},
+      {"turnIndex":10,"speaker":"agent","text":"I have three ideal properties in Westfield — great schools and 3+ bedrooms. Can you do a showing this Saturday at 11am?","timestamp":95,"confidence":0.96},
+      {"turnIndex":11,"speaker":"human","text":"Saturday works perfectly.","timestamp":112,"confidence":0.95},
+      {"turnIndex":12,"speaker":"agent","text":"Saturday at 11am confirmed! I'll email you the listings tonight so you can preview. Looking forward to it, Helen!","timestamp":117,"confidence":0.97}
+    ]
+  }
+]

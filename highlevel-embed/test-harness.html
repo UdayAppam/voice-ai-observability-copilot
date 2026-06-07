@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HL Test Harness — Voice AI Copilot Widget</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      background: #1C1C1C;
+      color: #fff;
+      min-height: 100vh;
+    }
+    .hl-sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 240px;
+      background: #1C1C1C;
+      border-right: 1px solid #2A2A2A;
+      padding: 16px;
+    }
+    .hl-sidebar h2 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #0066FF;
+      margin: 0 0 16px;
+    }
+    .hl-sidebar a {
+      display: block;
+      padding: 8px 12px;
+      color: #9CA3AF;
+      text-decoration: none;
+      font-size: 13px;
+      border-radius: 6px;
+    }
+    .hl-sidebar a:hover { background: #2A2A2A; color: #fff; }
+    .hl-sidebar a.active { background: #0066FF; color: #fff; }
+    .hl-main {
+      margin-left: 240px;
+      padding: 24px;
+      min-height: 100vh;
+      background: #F5F6FA;
+      color: #111827;
+    }
+    .hl-page-header {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+    .hl-page-sub {
+      font-size: 13px;
+      color: #6B7280;
+      margin: 0 0 24px;
+    }
+    .hl-card {
+      background: #fff;
+      border-radius: 8px;
+      border: 1px solid #E5E7EB;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .hl-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    .hl-card p {
+      color: #6B7280;
+      font-size: 13px;
+      margin: 0;
+    }
+    .pill {
+      display: inline-block;
+      background: #DBEAFE;
+      color: #0066FF;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    This is a TEST HARNESS that simulates HighLevel's interface so we can verify
+    the widget.js Custom JS embed works WITHOUT needing actual HL sandbox access.
+    Open this file in a browser, click the "AI Copilot" button bottom-right.
+  -->
+  <nav class="hl-sidebar">
+    <h2>HighLevel</h2>
+    <a href="#/dashboard" class="active" data-spa-route="dashboard">Dashboard</a>
+    <a href="#/contacts" data-spa-route="contacts">Contacts</a>
+    <a href="#/conversations" data-spa-route="conversations">Conversations</a>
+    <a href="#/automations" data-spa-route="automations">Automations</a>
+    <a href="#/voice-ai" data-spa-route="voice-ai">Voice AI</a>
+    <a href="#/settings" data-spa-route="settings">Settings</a>
+  </nav>
+
+  <main class="hl-main">
+    <h1 class="hl-page-header" id="page-title">
+      Sub-Account Dashboard
+      <span class="pill">SIMULATED HL HOST</span>
+    </h1>
+    <p class="hl-page-sub" id="page-sub">
+      This page mimics the HighLevel sub-account UI. The "AI Copilot" button (bottom-right)
+      is injected by widget.js — the same script you would paste into HL's Custom JS field.
+    </p>
+
+    <div class="hl-card">
+      <h3>Try the widget</h3>
+      <p>
+        Click the "AI Copilot" button in the bottom-right to open the dashboard in a sidebar iframe.
+        Click any nav link in the left sidebar to trigger a `history.pushState` (simulating HL SPA navigation) —
+        the widget should survive the route change.
+      </p>
+    </div>
+
+    <div class="hl-card">
+      <h3>What the widget does</h3>
+      <p>
+        Injects a floating button + 440px slide-in sidebar iframe.
+        Hooks `history.pushState` / `popstate` so it survives HL's single-page navigation.
+        Same-origin requests from the dashboard iframe go to the backend at the configured URL.
+      </p>
+    </div>
+  </main>
+
+  <!-- Simulate HL SPA navigation so we can prove widget survival -->
+  <script>
+    document.querySelectorAll('[data-spa-route]').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault()
+        document.querySelectorAll('.hl-sidebar a').forEach(a => a.classList.remove('active'))
+        link.classList.add('active')
+
+        const route = link.dataset.spaRoute
+        // This is the critical part: HL uses history.pushState which the widget must survive
+        history.pushState({}, '', `#/${route}`)
+        document.getElementById('page-title').firstChild.nodeValue = link.textContent.trim() + ' '
+        document.getElementById('page-sub').textContent =
+          `Simulated HL route change to /${route} via history.pushState — the AI Copilot button should still be present.`
+      })
+    })
+  </script>
+
+  <!--
+    Override BACKEND_URL via window.__COPILOT_CONFIG__ before loading widget.js.
+    For real HL embed, you would edit BACKEND_URL inside widget.js directly,
+    OR set window.__COPILOT_CONFIG__ in a `<script>` tag before the widget loads.
+  -->
+  <script>
+    window.__COPILOT_CONFIG__ = { backendUrl: 'http://localhost:3001' }
+  </script>
+  <script src="./widget.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Build output
+frontend/dist/
+backend/public/dashboard/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Railway
+.railway/
+
+# Claude Code local settings (contains approved-command history with possible secrets)
+.claude/
+
+# OpenAI / OS log directories
+.cache/
+
+# Original hiring artifact — not for public repo
+\[Hiring\]*.pdf
+backend/scripts/regression/.last-seed-map.json
+
+
+# Local runtime artifacts (cloudflared pids, backend.log, tunnel.url)
+.runtime/

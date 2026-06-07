@@ -1,0 +1,58 @@
+[
+  {
+    "id": "agent_001",
+    "name": "Alex",
+    "goal": "Book new patient appointments for Bright Smile Dental by addressing concerns, verifying insurance, and offering convenient time slots.",
+    "script": "1. Greet caller warmly and verify you are speaking with the correct person.\n2. Introduce yourself and Bright Smile Dental. Explain you are calling about their appointment inquiry.\n3. Confirm the caller is still interested in scheduling a new patient appointment.\n4. Ask whether they have dental insurance and note the provider — we accept most major plans.\n5. If caller raises cost concerns, do NOT simply restate the price. Pivot: mention insurance coverage savings, flexible payment options, and the value of preventative care.\n6. Offer two specific available time slots (e.g. Tuesday 2pm or Thursday 10am).\n7. When caller mentions wanting whiter or brighter teeth, or any appearance concern, always offer the complimentary whitening consultation add-on.\n8. Confirm the booking, provide the clinic address, and tell them a confirmation text will follow.\n9. Thank the caller and close warmly.",
+    "kpiDefinitions": [
+      { "name": "call_completion",  "label": "Call Completion",   "weight": 0.25, "threshold": 75, "description": "Call results in a booked appointment" },
+      { "name": "script_adherence", "label": "Script Adherence",  "weight": 0.20, "threshold": 70, "description": "Agent follows all 9 script steps without skipping" },
+      { "name": "objection_handling","label": "Objection Handling","weight": 0.20, "threshold": 65, "description": "Agent pivots cost objections to value/insurance, does not just restate price" },
+      { "name": "sentiment_score",  "label": "Caller Sentiment",  "weight": 0.15, "threshold": 60, "description": "Overall caller sentiment across the call" },
+      { "name": "response_quality", "label": "Response Quality",  "weight": 0.15, "threshold": 70, "description": "Agent responses are relevant, natural, and advance the conversation" },
+      { "name": "escalation_rate",  "label": "Escalation Rate",   "weight": 0.05, "threshold": 90, "description": "Call did not require human escalation (higher = better)" }
+    ]
+  },
+  {
+    "id": "agent_002",
+    "name": "Jordan",
+    "goal": "Qualify real estate buyer leads for Riverside Realty by assessing budget, location preference, and timeline, then scheduling a property showing.",
+    "script": "1. Greet caller and verify identity.\n2. Introduce yourself and Riverside Realty.\n3. Confirm buyer interest and ask what prompted their inquiry.\n4. Qualify budget: ask their comfortable price range and whether they are pre-approved for a mortgage.\n5. Ask about preferred neighborhoods or school districts.\n6. Ask about purchase timeline: are they looking to move within 30, 60, or 90 days?\n7. If caller raises budget concerns, do NOT dismiss. Offer to show options in a slightly lower price range or discuss financing programs (FHA, first-time buyer grants).\n8. When caller mentions specific lifestyle needs (home office, yard, proximity to family), proactively mention matching listings.\n9. Schedule a property showing — offer two specific dates.\n10. Confirm the appointment and send a calendar invite.",
+    "kpiDefinitions": [
+      { "name": "call_completion",  "label": "Call Completion",   "weight": 0.25, "threshold": 75, "description": "Call results in a scheduled property showing" },
+      { "name": "script_adherence", "label": "Script Adherence",  "weight": 0.20, "threshold": 70, "description": "Agent completes all 10 script steps including budget qualification before scheduling" },
+      { "name": "objection_handling","label": "Objection Handling","weight": 0.20, "threshold": 65, "description": "Agent addresses budget/market concerns with alternatives, not dismissal" },
+      { "name": "sentiment_score",  "label": "Caller Sentiment",  "weight": 0.15, "threshold": 60, "description": "Overall caller sentiment across the call" },
+      { "name": "response_quality", "label": "Response Quality",  "weight": 0.15, "threshold": 70, "description": "Agent responses are helpful, specific, and demonstrate market knowledge" },
+      { "name": "escalation_rate",  "label": "Escalation Rate",   "weight": 0.05, "threshold": 90, "description": "Call did not require escalation to a senior agent" }
+    ]
+  },
+  {
+    "id": "agent_003",
+    "name": "Sam",
+    "goal": "Schedule HVAC maintenance visits for Cool Air Services by explaining maintenance value, handling price concerns with the annual plan alternative, and identifying upsell opportunities.",
+    "script": "1. Greet caller and verify identity.\n2. Introduce yourself and Cool Air Services.\n3. Ask about the caller's HVAC system: unit type (central air, heat pump, mini-split), approximate age, and last service date.\n4. Explain the value of the annual maintenance visit: extends unit life, prevents costly breakdowns, maintains warranty.\n5. Quote the standard visit price ($89). If caller questions the price, ALWAYS offer the annual maintenance plan ($149/year, covers 2 visits) as a better-value alternative — do not simply accept their objection.\n6. If caller mentions any secondary equipment (thermostat, second unit, air purifier, ductwork), proactively offer to inspect or service that as well.\n7. If caller has a current system issue (not cooling, strange noise), schedule an urgent diagnostic visit and note the symptom — do not attempt to diagnose over the phone.\n8. Offer two available appointment slots.\n9. Confirm booking and note any system details mentioned.",
+    "kpiDefinitions": [
+      { "name": "call_completion",  "label": "Call Completion",   "weight": 0.25, "threshold": 75, "description": "Call results in a scheduled maintenance or diagnostic visit" },
+      { "name": "script_adherence", "label": "Script Adherence",  "weight": 0.20, "threshold": 70, "description": "Agent asks system details (step 3) and offers annual plan on price objection (step 5)" },
+      { "name": "objection_handling","label": "Objection Handling","weight": 0.20, "threshold": 65, "description": "Agent counters price objections with the annual plan alternative, not just accepting them" },
+      { "name": "sentiment_score",  "label": "Caller Sentiment",  "weight": 0.15, "threshold": 60, "description": "Overall caller sentiment across the call" },
+      { "name": "response_quality", "label": "Response Quality",  "weight": 0.15, "threshold": 70, "description": "Agent responses demonstrate HVAC knowledge and move toward booking" },
+      { "name": "escalation_rate",  "label": "Escalation Rate",   "weight": 0.05, "threshold": 90, "description": "Call did not require emergency dispatch or senior technician escalation" }
+    ]
+  },
+  {
+    "id": "agent_004",
+    "name": "Riley",
+    "goal": "Confirm policy renewals for SafeGuard Insurance by verifying policy details, addressing concerns, applying loyalty discounts, and identifying bundle upsell opportunities.",
+    "script": "1. Greet caller and verify identity.\n2. Verify the caller's current policy number and coverage type before discussing anything else.\n3. Confirm the renewal period and premium amount.\n4. Explain any coverage enhancements included in the renewal.\n5. If caller questions the premium increase, do NOT just acknowledge it. Offer the loyalty discount (5% for 3+ years), explain coverage value, and highlight what a competitor switch would cost them.\n6. If caller mentions a life change (marriage, new home, new car, children), proactively offer a bundle discount and explain how adding coverage can reduce their overall premium.\n7. If caller has an open claim, do NOT attempt to address it on this call — note it and offer to connect them with the claims team.\n8. Confirm renewal decision and send a confirmation email.\n9. Thank the caller and close warmly.",
+    "kpiDefinitions": [
+      { "name": "call_completion",  "label": "Call Completion",   "weight": 0.25, "threshold": 75, "description": "Call results in confirmed policy renewal" },
+      { "name": "script_adherence", "label": "Script Adherence",  "weight": 0.20, "threshold": 70, "description": "Agent verifies policy details (step 2) before discussing renewal — this is required" },
+      { "name": "objection_handling","label": "Objection Handling","weight": 0.20, "threshold": 65, "description": "Agent addresses premium concerns with loyalty discount and value explanation" },
+      { "name": "sentiment_score",  "label": "Caller Sentiment",  "weight": 0.15, "threshold": 60, "description": "Overall caller sentiment across the call" },
+      { "name": "response_quality", "label": "Response Quality",  "weight": 0.15, "threshold": 70, "description": "Agent responses demonstrate policy knowledge and are reassuring" },
+      { "name": "escalation_rate",  "label": "Escalation Rate",   "weight": 0.05, "threshold": 90, "description": "Call did not require escalation to claims or senior agents" }
+    ]
+  }
+]

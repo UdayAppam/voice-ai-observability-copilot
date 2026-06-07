@@ -1,0 +1,157 @@
+[
+  {
+    "id": "call_004_01", "agentId": "agent_004", "callerNumber": "+15550401",
+    "duration": 267, "outcome": "booked", "callTimestamp": "2026-05-20T10:30:00Z", "scenario": "perfect",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning, is this Patricia Moore?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, speaking.","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Patricia, this is Riley from SafeGuard Insurance. I'm calling regarding your auto and home policy renewal. Before I get into anything, could you confirm your policy number for me?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Sure, it's SG-448821.","timestamp":25,"confidence":0.95},
+      {"turnIndex":4,"speaker":"agent","text":"Perfect, I have that pulled up. Your renewal is coming up on June 30th. Your premium will be $1,840 for the year, which is a small increase from last year. I want to walk you through what's included.","timestamp":30,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"Sure, go ahead.","timestamp":51,"confidence":0.95},
+      {"turnIndex":6,"speaker":"agent","text":"Your renewal includes an upgraded roadside assistance package and an increase in your home replacement cost coverage. Given that construction costs have gone up, this is actually an important enhancement.","timestamp":55,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"That makes sense. And because I've been with you for 5 years, is there any loyalty discount?","timestamp":74,"confidence":0.93},
+      {"turnIndex":8,"speaker":"agent","text":"Absolutely — you qualify for our 5% loyalty discount, which I've already applied. That's reflected in the $1,840 figure. Without it you'd be at $1,935.","timestamp":88,"confidence":0.97},
+      {"turnIndex":9,"speaker":"human","text":"Oh good, I didn't realize that was already included. Yes, let's renew.","timestamp":107,"confidence":0.95},
+      {"turnIndex":10,"speaker":"agent","text":"Wonderful! Your policy is renewed for another year. You'll receive a confirmation email shortly. Thank you for your loyalty, Patricia!","timestamp":116,"confidence":0.97}
+    ]
+  },
+  {
+    "id": "call_004_02", "agentId": "agent_004", "callerNumber": "+15550402",
+    "duration": 289, "outcome": "booked", "callTimestamp": "2026-05-22T13:00:00Z", "scenario": "perfect",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this George Patel?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, this is George.","timestamp":7,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi George! Riley calling from SafeGuard. I'm reaching out about your policy renewal. Can you confirm your policy number first?","timestamp":11,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Yes, it's SG-221047.","timestamp":25,"confidence":0.95},
+      {"turnIndex":4,"speaker":"agent","text":"Got it, thank you. Your policy renews on July 15th. I wanted to go over your coverage and answer any questions before you decide.","timestamp":30,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"I actually had a question — does my policy cover water damage if it's from a pipe that bursts?","timestamp":44,"confidence":0.92},
+      {"turnIndex":6,"speaker":"agent","text":"Great question, George. Yes, sudden and accidental pipe bursts are covered under your current policy. What's not covered is gradual seepage or flooding from external sources, which would require separate flood insurance.","timestamp":58,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"That's good to know. I've been worried about that. Okay, I'm comfortable renewing.","timestamp":79,"confidence":0.94},
+      {"turnIndex":8,"speaker":"agent","text":"Excellent! Your premium is $2,110 for the year. You're all set for another year of coverage, George. Confirmation is on its way!","timestamp":88,"confidence":0.97}
+    ]
+  },
+  {
+    "id": "call_004_03", "agentId": "agent_004", "callerNumber": "+15550403",
+    "duration": 198, "outcome": "no_booking", "callTimestamp": "2026-05-24T09:00:00Z", "scenario": "price_obj",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning, is this Susan Clark?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes.","timestamp":6,"confidence":0.93},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Susan, Riley from SafeGuard Insurance. Calling about your policy renewal. Can I confirm your policy number?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"It's SG-334901.","timestamp":22,"confidence":0.94},
+      {"turnIndex":4,"speaker":"agent","text":"Thank you. Your renewal is July 1st. Your premium for this year is $2,340.","timestamp":27,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"That's up from $2,150 last year. That's quite a jump. Why is it going up so much?","timestamp":37,"confidence":0.90},
+      {"turnIndex":6,"speaker":"agent","text":"There have been some rate adjustments across the industry due to inflation in repair costs.","timestamp":52,"confidence":0.94},
+      {"turnIndex":7,"speaker":"human","text":"I can probably get a better rate somewhere else. Have you shopped around at all?","timestamp":63,"confidence":0.88},
+      {"turnIndex":8,"speaker":"agent","text":"I understand the concern. The market rates have gone up across the board.","timestamp":76,"confidence":0.93},
+      {"turnIndex":9,"speaker":"human","text":"I'm going to get some quotes before I commit to renewing with you. I'll call back.","timestamp":87,"confidence":0.89},
+      {"turnIndex":10,"speaker":"agent","text":"Of course, that's completely your right. We're here if you decide to stay with us.","timestamp":99,"confidence":0.95}
+    ]
+  },
+  {
+    "id": "call_004_04", "agentId": "agent_004", "callerNumber": "+15550404",
+    "duration": 212, "outcome": "no_booking", "callTimestamp": "2026-05-27T14:00:00Z", "scenario": "price_obj",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Thomas Nguyen?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Speaking.","timestamp":7,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Thomas, Riley from SafeGuard Insurance. Calling about your upcoming renewal. Policy number to confirm?","timestamp":10,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"SG-771023.","timestamp":23,"confidence":0.95},
+      {"turnIndex":4,"speaker":"agent","text":"Great. Your renewal comes up June 20th. Premium this year is $1,980.","timestamp":28,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"I've been quoted $1,720 by another company for similar coverage. Can you match that?","timestamp":39,"confidence":0.90},
+      {"turnIndex":6,"speaker":"agent","text":"I can't match a competitor's quote directly. Our pricing reflects the coverage quality we provide.","timestamp":53,"confidence":0.93},
+      {"turnIndex":7,"speaker":"human","text":"What makes your coverage worth $260 more?","timestamp":66,"confidence":0.88},
+      {"turnIndex":8,"speaker":"agent","text":"We have a strong claims track record and local adjusters. It's hard to put an exact number on that.","timestamp":74,"confidence":0.93},
+      {"turnIndex":9,"speaker":"human","text":"I think I'm going to go with the competitor. I'll let you know if I change my mind.","timestamp":91,"confidence":0.88}
+    ]
+  },
+  {
+    "id": "call_004_05", "agentId": "agent_004", "callerNumber": "+15550405",
+    "duration": 231, "outcome": "booked", "callTimestamp": "2026-05-29T11:00:00Z", "scenario": "missed_upsell",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning, is this Jennifer Mills?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, hi!","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Jennifer! Riley from SafeGuard. I'm calling about your auto policy renewal. Policy number to confirm?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"SG-882301. And by the way, we actually just got married last month so I need to update my name on file.","timestamp":22,"confidence":0.93},
+      {"turnIndex":4,"speaker":"agent","text":"Congratulations! I'll make a note to update your name. Your renewal is July 5th. The premium is $1,430 for the year.","timestamp":37,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"Sounds reasonable. Yes, go ahead and renew.","timestamp":54,"confidence":0.95},
+      {"turnIndex":6,"speaker":"agent","text":"Wonderful! All renewed. I'll also send you the name change form. Congratulations again on the marriage!","timestamp":60,"confidence":0.97},
+      {"turnIndex":7,"speaker":"human","text":"Thank you! He's getting his own car insurance sorted out too actually.","timestamp":73,"confidence":0.93},
+      {"turnIndex":8,"speaker":"agent","text":"Great — just let him know we're always here if he needs coverage. Have a wonderful day, Jennifer!","timestamp":82,"confidence":0.96}
+    ]
+  },
+  {
+    "id": "call_004_06", "agentId": "agent_004", "callerNumber": "+15550406",
+    "duration": 176, "outcome": "booked", "callTimestamp": "2026-06-01T09:30:00Z", "scenario": "off_script",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Mark Davis?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes.","timestamp":6,"confidence":0.93},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Mark, Riley from SafeGuard Insurance. Your policy is up for renewal on June 25th. This year's premium is $1,670. Are you comfortable renewing?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"What policy is this? I have a few with you.","timestamp":26,"confidence":0.91},
+      {"turnIndex":4,"speaker":"agent","text":"It's your home policy.","timestamp":36,"confidence":0.95},
+      {"turnIndex":5,"speaker":"human","text":"Okay, yeah. What's the policy number on this one?","timestamp":40,"confidence":0.90},
+      {"turnIndex":6,"speaker":"agent","text":"Let me pull that up — it's SG-443721.","timestamp":49,"confidence":0.94},
+      {"turnIndex":7,"speaker":"human","text":"Okay, that sounds right. Sure, renew it.","timestamp":58,"confidence":0.93},
+      {"turnIndex":8,"speaker":"agent","text":"Done! Your home policy is renewed. Confirmation on its way, Mark.","timestamp":65,"confidence":0.96}
+    ]
+  },
+  {
+    "id": "call_004_07", "agentId": "agent_004", "callerNumber": "+15550407",
+    "duration": 38, "outcome": "dropped", "callTimestamp": "2026-06-02T13:00:00Z", "scenario": "early_drop",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good afternoon, is this Alice Ford?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, but this isn't a good time.","timestamp":7,"confidence":0.90},
+      {"turnIndex":2,"speaker":"agent","text":"I'll be quick — this is Riley from SafeGuard about your policy renewal—","timestamp":14,"confidence":0.95},
+      {"turnIndex":3,"speaker":"human","text":"Call me back another time. Goodbye.","timestamp":24,"confidence":0.88}
+    ]
+  },
+  {
+    "id": "call_004_08", "agentId": "agent_004", "callerNumber": "+15550408",
+    "duration": 276, "outcome": "no_booking", "callTimestamp": "2026-06-03T10:00:00Z", "scenario": "negative_sentiment",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning, is this Steven Walsh?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yeah, what do you want?","timestamp":7,"confidence":0.88},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Steven, Riley from SafeGuard Insurance, calling about your upcoming renewal.","timestamp":12,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"My premium went up $400 this year and nobody bothered to tell me until I got the renewal notice. That's ridiculous.","timestamp":23,"confidence":0.85},
+      {"turnIndex":4,"speaker":"agent","text":"I completely understand your frustration, Steven. You're right that increase should have been communicated earlier. I'm sorry about that.","timestamp":42,"confidence":0.95},
+      {"turnIndex":5,"speaker":"human","text":"Sorry doesn't change the fact that I'm paying $400 more. What are you going to do about it?","timestamp":60,"confidence":0.83},
+      {"turnIndex":6,"speaker":"agent","text":"I can apply your loyalty discount — you've been with us 4 years — which would reduce it by about $120. I understand that doesn't cover the full difference, but it's what I'm able to offer.","timestamp":74,"confidence":0.95},
+      {"turnIndex":7,"speaker":"human","text":"I've already gotten quotes from two other companies that are $300 cheaper even with your discount. Why would I stay?","timestamp":96,"confidence":0.82},
+      {"turnIndex":8,"speaker":"agent","text":"That's a fair question, Steven. I genuinely can't guarantee we can match that gap. If you decide to switch, I understand.","timestamp":114,"confidence":0.94},
+      {"turnIndex":9,"speaker":"human","text":"I'll be switching. This call has been a waste of my time.","timestamp":132,"confidence":0.80}
+    ]
+  },
+  {
+    "id": "call_004_09", "agentId": "agent_004", "callerNumber": "+15550409",
+    "duration": 234, "outcome": "escalated", "callTimestamp": "2026-06-04T14:00:00Z", "scenario": "escalation",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Hi, is this Barbara Young?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, hi.","timestamp":6,"confidence":0.94},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Barbara! Riley from SafeGuard. Calling about your home policy renewal. Can I confirm your policy number?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"SG-667012. Though I actually wanted to ask — we filed a claim in February and it still hasn't been fully resolved. Is that going to affect my renewal?","timestamp":22,"confidence":0.90},
+      {"turnIndex":4,"speaker":"agent","text":"I want to help with that, but a pending claim is something our claims department handles directly. I don't want to give you incorrect information on how it affects your renewal.","timestamp":42,"confidence":0.95},
+      {"turnIndex":5,"speaker":"human","text":"So you can't tell me anything about my own claim?","timestamp":62,"confidence":0.87},
+      {"turnIndex":6,"speaker":"agent","text":"I can see there's an open claim on your file, but the details and status need to come from our claims team who have the full case. I'd feel better connecting you with them directly so you get accurate answers.","timestamp":69,"confidence":0.95},
+      {"turnIndex":7,"speaker":"human","text":"Okay. Can you transfer me?","timestamp":90,"confidence":0.92},
+      {"turnIndex":8,"speaker":"agent","text":"Absolutely. Let me connect you right now. They'll be able to give you a full update and also address any renewal concerns tied to the claim.","timestamp":96,"confidence":0.96}
+    ]
+  },
+  {
+    "id": "call_004_10", "agentId": "agent_004", "callerNumber": "+15550410",
+    "duration": 298, "outcome": "booked", "callTimestamp": "2026-06-05T08:30:00Z", "scenario": "perfect",
+    "transcript": [
+      {"turnIndex":0,"speaker":"agent","text":"Good morning, is this Charles Bennett?","timestamp":0,"confidence":0.97},
+      {"turnIndex":1,"speaker":"human","text":"Yes, hi.","timestamp":6,"confidence":0.95},
+      {"turnIndex":2,"speaker":"agent","text":"Hi Charles! Riley from SafeGuard. I'm calling about your auto and home bundle renewal. Can I start by confirming your policy number?","timestamp":9,"confidence":0.96},
+      {"turnIndex":3,"speaker":"human","text":"Sure — SG-112884.","timestamp":25,"confidence":0.95},
+      {"turnIndex":4,"speaker":"agent","text":"Perfect, I have your account up. Your bundle renewal is July 10th. This year's combined premium is $3,210 — that already includes your 5% loyalty discount as a 6-year customer.","timestamp":30,"confidence":0.97},
+      {"turnIndex":5,"speaker":"human","text":"That's fair. I have a few questions about what changed in the coverage.","timestamp":51,"confidence":0.93},
+      {"turnIndex":6,"speaker":"agent","text":"Of course, ask away.","timestamp":63,"confidence":0.96},
+      {"turnIndex":7,"speaker":"human","text":"Does the auto policy still cover a rental car if mine's in the shop after an accident?","timestamp":67,"confidence":0.93},
+      {"turnIndex":8,"speaker":"agent","text":"Yes it does — rental reimbursement is included up to $50 per day for up to 30 days. That's unchanged from last year.","timestamp":79,"confidence":0.97},
+      {"turnIndex":9,"speaker":"human","text":"Good. And the home coverage — is the deductible still $1,000?","timestamp":96,"confidence":0.93},
+      {"turnIndex":10,"speaker":"agent","text":"Yes, $1,000 deductible is unchanged. You're actually at a very competitive coverage level for your premium.","timestamp":104,"confidence":0.97},
+      {"turnIndex":11,"speaker":"human","text":"Alright, sounds good. Let's renew for another year.","timestamp":119,"confidence":0.95},
+      {"turnIndex":12,"speaker":"agent","text":"Excellent Charles! You're all renewed. Confirmation email is coming shortly. Thank you for 6 years with SafeGuard!","timestamp":126,"confidence":0.97}
+    ]
+  }
+]
