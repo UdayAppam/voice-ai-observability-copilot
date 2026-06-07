@@ -65,12 +65,12 @@ Click `⚠️ Actions`.
 
 Click Resolve on one row.
 
-### 2:55 — Call Detail with hallucination flag (40s)
-Click any failing call from the queue (S4 — Maya / hallucination is best).
+### 2:55 — Call Detail with unverified-claim flag (40s)
+Click any failing call from the queue (S4 — Maya scenario surfaces these well).
 
-> "Inside a call you see the full transcript, annotated. **Red rings** are use actions, amber are missed opportunities, **red triangles are hallucinations** — moments where the AI stated something not supported by its script. Here, the agent invented HIPAA + SOC 2 + ISO 27001 compliance claims that aren't in the agent's goal or knowledge base. That's an AI safety win — it catches brand-damage moments before they compound."
+> "Inside a call you see the full transcript, annotated. **Red rings** are use actions, amber are missed opportunities, and **red filled-in cards** are unverified claims — moments where the AI agent stated something not supported by its script. Here, the agent invented HIPAA + SOC 2 + ISO 27001 compliance claims that aren't in the agent's goal or knowledge base. Each flagged turn explains: what the agent said, why it's flagged, why it matters for the business, and what to do about it. That's an AI safety win — catches brand-damage moments before they compound."
 
-Scroll the transcript, highlight the hallucination chip in the header.
+Point at the header chip (`⚠️ N unverified claims by agent`) and scroll to a flagged turn so the reviewer sees the structured what/why/why-matters/what-to-do card.
 
 ### 3:35 — Per-agent flywheel + KPI editor (25s)
 Click into FrontDoor AI from the agent strip.

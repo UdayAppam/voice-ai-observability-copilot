@@ -128,6 +128,8 @@ recommendations_json      TEXT NOT NULL    -- [{title, severity, type, detail, s
 use_actions_json          TEXT NOT NULL    -- [{turnIndex, reason, actionType, transcript_segment}]
 hallucinations_json       TEXT NOT NULL DEFAULT '[]'
                           -- [{turnIndex, type, claim, confidence, impact}]  (added by migration)
+                          -- Surfaced to users as "unverified claims by agent" — see
+                          -- CallDetailView.vue for the customer-facing copy mapping
 analyzed_at               TEXT
 ```
 

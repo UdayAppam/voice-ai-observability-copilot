@@ -66,7 +66,7 @@ Monitor + Analyze are the FSB Core Functionality. The Validation Flywheel is the
 | Causal before/after measurement of applied recommendations | **Live** |
 | Cross-agent failure pattern clustering | **Live** — `cluster_key` dedup |
 | Use Action queue with `resolve / dismiss / escalate` verbs | **Live** |
-| Hallucination detection (7th validator) | **Live** — empty arrays on clean transcripts (not a bug) |
+| Hallucination detection — "unverified claims by agent" in the UI (7th validator) | **Live** — surfaces fabricated facts, invented policies, made-up capabilities, wrong prices, unverified claims. Call Detail page shows each flagged turn with `what the agent said` / `why flagged` / `why it matters` / `what to do`. Empty arrays on clean transcripts (not a bug). |
 | Deterministic per-stage narratives (what / why / evidence / action) | **Live** — no extra OpenAI cost |
 | OAuth Marketplace install flow (`/api/oauth/callback`) | **Live** — per-location tokens persisted |
 | **V4 — One-click apply: writes recommendation directly to HL Voice AI agent via PATCH** | **Live** — `HLVoiceAgentService` + `ApplyRecommendationService`. Verified by 27/27 live regression assertions against the HL sandbox |

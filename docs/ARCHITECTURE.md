@@ -163,6 +163,12 @@ Detecting "did the agent prompt change?" is the trigger for closing the validati
 
 The FSB scope says single sub-account. SQLite via `node:sqlite` (built-in to Node 22.5+) gives zero native dependencies, file-based persistence (mount a persistent volume + point `DATABASE_PATH` at it on any host with ephemeral disks), and WAL mode for concurrent reads. Scaling beyond one sub-account would need either per-location databases or Postgres; both are clear next steps but out of FSB scope.
 
+### Customer-facing vs technical vocabulary
+
+The system detects what the AI/LLMOps industry calls "hallucinations" — moments where the AI agent stated facts not supported by its script. **Internally** (DB column `hallucinations_json`, OpenAI prompt enum, regression assertions, API field names) we keep the technical term. **In the UI** (Call Detail card headers, header chip, explainer) we use "unverified claims by agent" — accessible to non-AI-literate agency owners.
+
+This separation lets the code stay technically precise without leaking jargon into the customer experience. The mapping lives entirely in `CallDetailView.vue` (`formatHallucinationType()`, `whyFlagged()`, `whatToDo()` helpers); changing display copy never touches the schema or API.
+
 ### Same-origin SPA serving
 
 The built Vue SPA is copied to `backend/public/dashboard/` and served by Express at `/dashboard`. The dashboard's API client uses `baseURL: '/api'` — no CORS in production. Dev mode (Vite on `:5174` talking to backend on `:3000`) is the only place where CORS headers matter, and they're scoped to that environment via `NODE_ENV !== 'production'`.
@@ -192,7 +198,7 @@ Use Actions live inside `analyses.use_actions_json` (they're per-call). Their li
 | `/patterns` | Cross-agent failure pattern cards w/ lifecycle bars (filter by status + min-agents, URL-synced) |
 | `/actions` | Use Action queue w/ 4-tab filter + verb buttons (optimistic UI) |
 | `/calls` | All calls list |
-| `/calls/:id` | Call Detail — transcript w/ hallucination + Use Action + deviation + missed rings, KPI bars, recommendations, flags timeline |
+| `/calls/:id` | Call Detail — transcript w/ unverified-claim cards (4-section structured view: what said / why flagged / why it matters / what to do), Use Action / deviation / missed-opportunity rings, KPI bars, recommendations, flags timeline. Includes dismissable first-time explainer for "what's an unverified claim?". |
 | `/agents/:id` | Agent Detail — health donut, KpiEditor, horizontal AgentFlywheelStageCards, KpiBars, AI Insights, calls list |
 
 ### Components (25)
