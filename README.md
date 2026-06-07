@@ -48,7 +48,7 @@ Monitor + Analyze are the FSB Core Functionality. The Validation Flywheel is the
 | Database | SQLite via Node's built-in `node:sqlite` (WAL mode) | Zero native deps; ships with Node 22.5+ |
 | AI | OpenAI `gpt-4o-mini` with `response_format: json_schema` + `strict: true` | Structured output, no parsing fragility, cheap |
 | Logging | pino (structured JSON) | Production-grade |
-| HL integration | Custom JS widget + Marketplace OAuth | Both flows shipped |
+| HL integration | Marketplace App OAuth — dashboard embeds as Custom Menu Link in HL nav | Production-shape integration, full-width iframe |
 | Deploy | Local Node + cloudflared tunnel for HL-facing HTTPS; any Node host works | No cloud lock-in; persistent disk required for SQLite |
 
 ---
@@ -68,10 +68,16 @@ Monitor + Analyze are the FSB Core Functionality. The Validation Flywheel is the
 | Use Action queue with `resolve / dismiss / escalate` verbs | **Live** |
 | Hallucination detection (7th validator) | **Live** — empty arrays on clean transcripts (not a bug) |
 | Deterministic per-stage narratives (what / why / evidence / action) | **Live** — no extra OpenAI cost |
-| Custom JS widget (floating button + slide-in iframe) | **Live** |
 | OAuth Marketplace install flow (`/api/oauth/callback`) | **Live** — per-location tokens persisted |
+| **V4 — One-click apply: writes recommendation directly to HL Voice AI agent via PATCH** | **Live** — `HLVoiceAgentService` + `ApplyRecommendationService`. Verified by 27/27 live regression assertions against the HL sandbox |
+| **V4 — Editable diff modal: user can tune the AI suggestion before commit** | **Live** — debounced 300ms validators re-run on every keystroke; Confirm button label switches between `Apply AI suggestion` and `Apply your edit` |
+| **V4 — Pre-apply validator pipeline (5 validators)** | **Live** — template vars / length / tone / forbidden content / call-length impact. Blocking failures disable Confirm |
+| **V4 — Snapshot-based rollback (HL has no native versioning)** | **Live** — previous `agentPrompt` snapshotted before every PATCH; one-click revert |
+| **V4 — Apply audit trail (`apply_attempts` table)** | **Live** — every Apply + Rollback logged with timeline, diff, edit metadata, user email |
+| **V4 — Idempotency on double-click** | **Live** — second Apply within 5min returns cached receipt (skipped if rec is no longer `applied`) |
+| **V4 — Edit-summary LLM call** (one-line "what the user changed") | **Live** — powers receipt panel + future product-intelligence metrics |
+| **V4.1 — Pattern metrics: "Detected in N calls · M failed · last 4h ago · recurring"** | **Live** — replaces engineering occurrence_count with distinct-call math via `recommendation_calls` join table |
 | Real-time webhook ingestion | Endpoint exists (`POST /api/transcripts/ingest`); HL webhook not wired |
-| Auto-write recommendation back to HL agent prompt | **Not shipped** — explicit out-of-scope for V3 (manual paste-in workflow) |
 | Multi-sub-account agency rollups | Out of scope per FSB ("single sub-account") |
 
 ---
@@ -102,7 +108,7 @@ The first start auto-seeds 4 mock Voice AI agents with realistic transcripts (le
 
 ### Option B — Live HighLevel sub-account
 
-See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full walkthrough (sandbox creation, PIT scopes, OAuth Marketplace App setup, cloudflared exposure, Custom JS install).
+See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full walkthrough (sandbox creation, PIT scopes, OAuth Marketplace App install, cloudflared exposure, dashboard as Custom Menu Link in HL nav).
 
 ---
 
@@ -116,9 +122,10 @@ See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full walkthrough (sandb
 │   ├── IMPLEMENTATION_PLAN.md      ← what shipped + future roadmap
 │   ├── DATA_MODEL.md               ← SQLite schema + lifecycle states
 │   ├── API_SPEC.md                 ← every REST endpoint + payloads
-│   ├── INTEGRATION.md              ← HL sandbox + cloudflared exposure + widget install
+│   ├── INTEGRATION.md              ← HL sandbox + cloudflared exposure + Marketplace App install
 │   ├── DEMO_SCRIPT.md              ← Loom recording walkthrough
-│   └── V4_PLAN.md                  ← post-FSB roadmap: one-click apply via HL Agent Studio API
+│   ├── V4_PLAN.md                  ← V4 design — one-click apply via HL Voice AI API (shipped)
+│   └── V4_API_DISCOVERY.md         ← HL API findings that grounded V4's architecture
 ├── backend/
 │   ├── src/
 │   │   ├── app.js                  ← Express app + route mounting
@@ -139,9 +146,6 @@ See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full walkthrough (sandb
 │       ├── views/                  ← 7 page views
 │       ├── components/             ← 25 components
 │       └── api/client.js           ← axios singleton w/ X-API-Key
-├── highlevel-embed/
-│   ├── widget.js                   ← Custom JS for HL Settings → Custom JS
-│   └── test-harness.html           ← local HL-like host page for widget development
 └── .runtime/
     ├── run-persistent.sh           ← starts backend + cloudflared tunnel
     └── use-data.sh                 ← switch DATABASE_PATH between live + test DBs
@@ -157,7 +161,7 @@ Built solo across all four FSB roles. Decisions made:
 
 **Design** — embraced HighLevel's design tokens (`#0066FF` primary), iframe-first sidebar layout so the dashboard never competes with HL's own chrome, narratives in plain English with a consistent **what / why / evidence / action** format on every Flywheel stage card. Status colors are semantic (pass=green, warning=amber, fail=red) and reused everywhere.
 
-**Engineering** — adapter pattern for transcript providers (Mock vs HighLevel) so the same code path drives both; OpenAI `response_format: json_schema` with `strict: true` so we never parse free-form JSON; "trust LLM for semantic, backend for arithmetic" — `overall_score` is recomputed deterministically from `Σ(kpi_score × weight)`; SHA-256 prompt-version detection for causal before/after measurement; pushState-aware Custom JS widget that survives HL's SPA navigation; same-origin SPA serving so no CORS in prod.
+**Engineering** — adapter pattern for transcript providers (Mock vs HighLevel) so the same code path drives both; OpenAI `response_format: json_schema` with `strict: true` so we never parse free-form JSON; "trust LLM for semantic, backend for arithmetic" — `overall_score` is recomputed deterministically from `Σ(kpi_score × weight)`; SHA-256 prompt-version detection for causal before/after measurement; OAuth Marketplace App with auto-refresh + V4 PATCH writes to HL Voice AI agents; same-origin SPA serving so no CORS in prod.
 
 **QA** — additive-only schema migrations with `columnExists` guards; lint must pass zero warnings before any deploy; manual smoke-test matrix (all SPA routes + all API endpoints + each Action verb + KPI weight validation edge cases); deterministic narrative service so every dashboard claim is reproducible from DB state.
 
@@ -167,21 +171,22 @@ Built solo across all four FSB roles. Decisions made:
 
 ```
 HighLevel Sub-Account
-  └── Custom JS widget injects floating button
-        └── Click → 440px slide-in iframe
-              └── Vue.js SPA → axios → Express API (same origin)
+  └── "AI Copilot" Custom Menu Link (full-width iframe)
+        └── Vue.js SPA → axios → Express API (same origin)
                                           │
-                       ┌──────────────────┼──────────────────┐
-                       ▼                  ▼                  ▼
-                  Transcript          OpenAI            SQLite (9 tables,
-                  Provider           Analysis           WAL, node:sqlite)
-                 (Mock or HL)    (json_schema strict)
-                                       │
-                              ┌────────┼────────┐
-                              ▼        ▼        ▼
-                       Recommendation  Prompt   Narrative
-                          Service     Version   Service
-                                      Service  (deterministic)
+              ┌───────────────────────────┼───────────────────────────┐
+              ▼                           ▼                           ▼
+        Transcript Provider          OpenAI Analysis           SQLite (10 tables,
+        (Mock or HighLevel)        (json_schema strict)        WAL, node:sqlite)
+                                         │
+                       ┌─────────────────┼─────────────────┐
+                       ▼                 ▼                 ▼
+              Recommendation         Prompt Version       Narrative
+                  Service               Service           Service
+                       │
+                       ▼
+              V4: HLVoiceAgentService → PATCH /voice-ai/agents/:id
+              (one-click apply + snapshot-based rollback)
 ```
 
 Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).

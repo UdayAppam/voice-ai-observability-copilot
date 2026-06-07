@@ -35,9 +35,9 @@ Constraints:
 - ~4,068 LOC
 
 ### Integration
-- Custom JS widget (`highlevel-embed/widget.js`) with pushState awareness
-- OAuth Marketplace flow (`/api/oauth/callback` + persistence)
-- Local HL test harness (`test-harness.html`)
+- Marketplace App OAuth flow (`/api/oauth/callback` + per-location token persistence + auto-refresh)
+- Dashboard embeds inside HL as a Custom Menu Link (full-width iframe)
+- PIT-token fallback for single-tenant developer use
 
 ### Documentation
 - README + 5 docs files (ARCHITECTURE, DATA_MODEL, API_SPEC, INTEGRATION, DEMO_SCRIPT, this file)
@@ -55,7 +55,7 @@ The build proceeded in 4 phases over ~3 days. Each phase was scoped to leave the
 - Mock transcript provider with 4 realistic agents
 - Basic OpenAI analysis pipeline with structured output
 - Overview + Agent Detail + Call Detail pages
-- Custom JS widget skeleton
+- Custom JS widget skeleton (later removed in favor of OAuth + Custom Menu Link — 440px sidebar too narrow for the rich dashboard)
 
 ### Phase 1 — HighLevel live integration (Day 2 morning)
 - `HighLevelTranscriptProvider` calling `services.leadconnectorhq.com/voice-ai/*` endpoints
@@ -137,7 +137,7 @@ Sub-phase 3.4 — Switch over (~45 min)
 - **SHA-256 versioning is a heuristic** — typo fixes get credit for "applying" all pending recs; self-corrects when recs reappear
 - **SQLite single-tenant** — does not scale to multi-sub-account; intentional FSB scope match
 - **Pull-only ingestion** — Sync All replaces push; webhook is one config away
-- **Hardcoded `X-API-Key` in widget** — visible in browser source; OK for single-tenant, OAuth path solves it for multi-tenant
+- **`X-API-Key` exposed in client SPA** — visible in browser source; tolerable for single-sub-account scope. Marketplace App's per-location OAuth tokens are the production answer
 - **Narrative bounded by SQL rules** — can't synthesise novel insights; future "explain in depth" OpenAI button planned
 
 ---
@@ -199,7 +199,7 @@ All passing as of 2026-06-06:
 | PDF requirement | Coverage | Where |
 |---|---|---|
 | Sandbox account from HL Marketplace | Documented | `INTEGRATION.md` |
-| Custom JS OR Marketplace App integration | Both shipped | `widget.js` + `routes/oauth.js` |
+| Custom JS OR Marketplace App integration | Marketplace App OAuth + Custom Menu Link | `routes/oauth.js`, `HLAuthService`, dashboard added as Custom Menu Link in HL nav |
 | Ingest + analyze existing Voice AI transcripts | A | `IngestionService`, `AnalysisService`, `HighLevelTranscriptProvider` |
 | Observability params from agent's specific goals/script | A | `kpi_definitions` per agent, editable via `KpiEditor.vue` + `PUT /api/agents/:id/kpis` |
 | Identify deviations | A | OpenAI `deviations[]`, rendered as transcript rings + Flags Timeline |
@@ -209,6 +209,6 @@ All passing as of 2026-06-06:
 | Visualise performance issues | A+ | Status distributions, KPI radar, failure reasons, sentiment trend, /patterns clusters |
 | Immediate recommendations for prompt/script adjustments | A+ | First-class `recommendations` table with copy-paste `suggestedChange`, surfaced everywhere |
 | Highlight "Use Actions" | A+ | Dedicated `/actions` queue + per-turn transcript rings + verb buttons |
-| GitHub repo URL | **Pending** (run `git init` + push) | repo not yet initialised |
+| GitHub repo URL | ✅ shipped | https://github.com/UdayAppam/voice-ai-observability-copilot |
 | 2-5 min Loom demo | Script written, recording pending | `DEMO_SCRIPT.md` |
 | README + Team-of-One + functional/mocked | A | `README.md` |

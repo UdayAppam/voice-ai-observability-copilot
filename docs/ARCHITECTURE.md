@@ -10,12 +10,10 @@ Reflects the system as shipped. Last updated 2026-06-06.
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                          HighLevel Sub-Account                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │  Custom JS (Settings → Custom JS & CSS)                              │  │
-│  │  └── widget.js                                                       │  │
-│  │        ├── Floating "AI Copilot" button (bottom-right, fixed)        │  │
-│  │        ├── 440px slide-in sidebar w/ iframe                          │  │
-│  │        ├── pushState/popstate hooks (survives HL SPA navigation)     │  │
-│  │        └── __COPILOT_INSTALLED__ guard against double mount          │  │
+│  │  HL left nav → "AI Copilot" Custom Menu Link                          │ │
+│  │  └── full-width iframe → <BACKEND_URL>/dashboard/?locationId=…        │ │
+│  │  Marketplace App OAuth populated oauth_installations on install,      │ │
+│  │  giving us per-location access_token + refresh_token for HL writes.   │ │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────┬─────────────────────────────────────────┘
                                    │ iframe.src = BACKEND_URL/dashboard/
