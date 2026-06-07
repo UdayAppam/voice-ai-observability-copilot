@@ -1,5 +1,8 @@
 # Voice AI Observability Copilot
 
+**Repo**: https://github.com/UdayAppam/voice-ai-observability-copilot
+**Stable tag**: `v4.1` (one-click apply via HL Voice AI API + customer-meaningful pattern metrics)
+
 An observability + improvement copilot for HighLevel Voice AI agents. Built for the FSB Q226 hiring assignment.
 
 Pulls call transcripts from a HighLevel sub-account (or realistic mock data), scores each call against agent-specific KPIs with OpenAI, surfaces deviations / missed opportunities / hallucinations / required human follow-up, then closes the loop by measuring whether applied recommendations actually moved the score.
