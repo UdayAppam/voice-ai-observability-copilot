@@ -337,12 +337,12 @@ function severityIconClass(sev) {
 }
 function checkLabel(name) {
   return ({
-    template_vars:     'Template vars',
-    length:            'Length',
-    tone:              'Tone',
-    forbidden_content: 'Forbidden content',
-    call_length:       'Call length',
-    network:           'Network',
+    template_vars:     'Variables',
+    length:            'Length limit',
+    tone:              'Brand voice',
+    forbidden_content: 'Safety check',
+    call_length:       'Call-length impact',
+    network:           'Connection',
   }[name]) || name
 }
 function truncate(s, n) { return s && s.length > n ? s.slice(0, n) + '…' : s }

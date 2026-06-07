@@ -53,10 +53,12 @@ export const useAgentStore = defineStore('agents', () => {
     }
   }
 
-  async function fetchInsights(id) {
+  // Pass { refresh: true } to bypass server-side cache (Re-analyse button)
+  async function fetchInsights(id, { refresh = false } = {}) {
     insightsLoading.value = true
     try {
-      const { data } = await client.get(`/agents/${id}/insights`)
+      const params = refresh ? { refresh: 'true' } : {}
+      const { data } = await client.get(`/agents/${id}/insights`, { params })
       currentInsights.value = data
     } catch (err) {
       currentInsights.value = null

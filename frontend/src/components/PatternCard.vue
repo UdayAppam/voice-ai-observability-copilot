@@ -64,8 +64,8 @@
             :title="`Dismissed: ${pattern.statusBreakdown.dismissed}`"
           />
         </div>
-        <div class="text-[10px] text-text-muted mt-0.5 font-mono">
-          {{ pattern.statusBreakdown.active }}a · {{ pattern.statusBreakdown.applied }}ap · {{ pattern.statusBreakdown.dismissed }}d
+        <div class="text-[10px] text-text-muted mt-0.5">
+          {{ pattern.statusBreakdown.active }} active · {{ pattern.statusBreakdown.applied }} applied · {{ pattern.statusBreakdown.dismissed }} dismissed
         </div>
       </div>
 

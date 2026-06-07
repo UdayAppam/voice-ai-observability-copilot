@@ -152,9 +152,18 @@ const ActionRow = {
         escalation:         { badge: 'bg-accent-primary/15 text-accent-primary', label: 'Escalation' },
       }[a.actionType] || { badge: 'bg-bg-elevated text-text-muted', label: a.actionType }
 
+      // Honest tooltip on each verb — V4 ships the queue lifecycle; downstream
+      // workflow actions (SMS, HL task, Slack ping) are V5 scope. Surface that
+      // up-front rather than implying these buttons do more than they do.
+      const verbTitle = {
+        resolve:  'Marks this action as triaged in your queue. (V5 will wire to HL workflow actions — SMS, task creation.)',
+        dismiss:  'Hides from the active queue. The AI\'s detection isn\'t affected; if the pattern recurs, it\'ll re-surface.',
+        escalate: 'Flags for review. Currently a queue label — no notifications fire yet (V5).',
+      }
       const verbBtn = (verb, label, cls) => h('button', {
         class: `text-[11px] px-2 py-1 rounded-sm border transition-colors ${cls}`,
         disabled: p.pending,
+        title: verbTitle[verb] || '',
         onClick: () => emit('verb', verb),
       }, p.pending ? '…' : label)
 
@@ -167,10 +176,14 @@ const ActionRow = {
               class: 'text-[11px] text-accent-primary hover:underline',
             }, () => a.agentName),
             h('span', { class: 'text-[10px] text-text-muted' }, '·'),
+            // Link → Call Detail with `?turn=` so the transcript pre-scrolls
+            // to the flagged turn. Visually distinct (underline + chevron) so
+            // users know it's clickable.
             h(RouterLink, {
-              to: `/calls/${a.callId}`,
-              class: 'text-[11px] text-text-secondary hover:text-text-primary font-mono',
-            }, () => `call ${a.callId.slice(-6)}`),
+              to: { path: `/calls/${a.callId}`, query: { turn: a.turnIndex } },
+              class: 'text-[11px] text-accent-primary hover:text-accent-secondary font-mono underline decoration-dotted underline-offset-2',
+              title: `Open call ${a.callId.slice(-6)} · scrolls to turn ${a.turnIndex}`,
+            }, () => `call ${a.callId.slice(-6)} ↗`),
             h('span', { class: 'text-[10px] text-text-muted' }, `· turn ${a.turnIndex}`),
             a.overallScore !== null && h('span', {
               class: `text-[10px] px-1.5 py-0.5 rounded-sm font-mono ${a.overallScore >= 70 ? 'bg-pass/15 text-pass' : a.overallScore >= 40 ? 'bg-warn/15 text-warn' : 'bg-fail/15 text-fail'}`,

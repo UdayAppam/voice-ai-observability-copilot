@@ -161,34 +161,40 @@ router.get('/:id/calls', (req, res, next) => {
   }
 })
 
-// GET /api/agents/:id/insights
-// Cross-call AI analysis — generated on demand, cached in agent_insights table
+// GET /api/agents/:id/insights[?refresh=true]
+// Cross-call AI analysis — generated on demand, cached in agent_insights table.
+// Pass ?refresh=true to bypass cache and force a fresh OpenAI generation
+// (used by the [↻ Re-analyse] button in Agent Detail).
 router.get('/:id/insights', async (req, res, next) => {
   try {
     const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(req.params.id)
     if (!agent) return next(httpError('AGENT_NOT_FOUND', `Agent ${req.params.id} not found`, 404))
 
-    // Check cache — return most recent cached insight if it exists
-    const cached = db.prepare(`
-      SELECT summary, patterns_json, use_action_summary_json, generated_at, call_count
-      FROM agent_insights WHERE agent_id = ?
-      ORDER BY generated_at DESC LIMIT 1
-    `).get(agent.id)
+    const forceRefresh = req.query.refresh === 'true' || req.query.refresh === '1'
 
-    if (cached) {
-      logger.info({ agentId: agent.id }, 'insights: returning cached result')
-      return res.json({
-        agentId: agent.id,
-        generatedAt: cached.generated_at,
-        callCount: cached.call_count,
-        summary: cached.summary,
-        patternedIssues: JSON.parse(cached.patterns_json),
-        useActionSummary: JSON.parse(cached.use_action_summary_json),
-      })
+    // Cache lookup — skipped when ?refresh=true
+    if (!forceRefresh) {
+      const cached = db.prepare(`
+        SELECT summary, patterns_json, use_action_summary_json, generated_at, call_count
+        FROM agent_insights WHERE agent_id = ?
+        ORDER BY generated_at DESC LIMIT 1
+      `).get(agent.id)
+      if (cached) {
+        logger.info({ agentId: agent.id }, 'insights: returning cached result')
+        return res.json({
+          agentId: agent.id,
+          generatedAt: cached.generated_at,
+          callCount: cached.call_count,
+          summary: cached.summary,
+          patternedIssues: JSON.parse(cached.patterns_json),
+          useActionSummary: JSON.parse(cached.use_action_summary_json),
+          cached: true,
+        })
+      }
     }
 
-    // No cache — generate now (OpenAI call)
-    logger.info({ agentId: agent.id }, 'insights: generating (no cache)')
+    // No cache (or refresh requested) — generate now (OpenAI call)
+    logger.info({ agentId: agent.id, forceRefresh }, 'insights: generating')
     const result = await analysisService.analyzeAgentInsights(agent)
 
     if (!result) {
@@ -197,6 +203,7 @@ router.get('/:id/insights', async (req, res, next) => {
         message: 'No analysed calls yet — run analysis first',
         patternedIssues: [],
         useActionSummary: {},
+        cached: false,
       })
     }
 
@@ -207,6 +214,7 @@ router.get('/:id/insights', async (req, res, next) => {
       summary: result.summary,
       patternedIssues: result.patterns || [],
       useActionSummary: result.useActionSummary || {},
+      cached: false,
     })
   } catch (err) {
     next(err)

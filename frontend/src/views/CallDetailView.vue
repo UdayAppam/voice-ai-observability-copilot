@@ -235,23 +235,30 @@
                     </div>
                   </div>
                 </div>
+                <!-- Standardised compact annotations (Use Action / Missed / Deviation).
+                     Hallucination uses the larger 4-section card above because the concept
+                     itself needs explaining; these three are self-evident in 1 line. All
+                     share consistent visual treatment: left border + xs body + tinted bg. -->
                 <div
                   v-if="turn.useAction"
-                  class="mt-1 pt-1 border-t border-hl-fail/40 text-[10px] text-left"
+                  class="mt-2 -mx-1 px-2 py-1.5 rounded border-l-4 border-l-hl-fail bg-hl-fail/5 text-xs text-left"
                 >
-                  <span class="font-semibold text-hl-fail">⚠ Use Action:</span> {{ turn.useAction.reason }}
+                  <span class="font-semibold text-hl-fail">⚠ Needs human follow-up:</span>
+                  <span class="text-text-secondary"> {{ turn.useAction.reason }}</span>
                 </div>
                 <div
                   v-if="turn.missedOpportunity"
-                  class="mt-1 pt-1 border-t border-hl-warn/40 text-[10px] text-left"
+                  class="mt-2 -mx-1 px-2 py-1.5 rounded border-l-4 border-l-hl-warn bg-hl-warn/5 text-xs text-left"
                 >
-                  <span class="font-semibold text-hl-warn">💡 Missed:</span> {{ turn.missedOpportunity.opportunity }}
+                  <span class="font-semibold text-hl-warn">💡 Missed opportunity:</span>
+                  <span class="text-text-secondary"> {{ turn.missedOpportunity.opportunity }}</span>
                 </div>
                 <div
                   v-if="turn.deviation"
-                  class="mt-1 pt-1 border-t border-hl-deviation/40 text-[10px] text-left"
+                  class="mt-2 -mx-1 px-2 py-1.5 rounded border-l-4 border-l-hl-deviation bg-hl-deviation/5 text-xs text-left"
                 >
-                  <span class="font-semibold text-hl-deviation">✗ Deviation:</span> {{ turn.deviation.description }}
+                  <span class="font-semibold text-hl-deviation">✗ Script deviation:</span>
+                  <span class="text-text-secondary"> {{ turn.deviation.description }}</span>
                 </div>
               </div>
             </div>
@@ -365,10 +372,21 @@ async function load(id) {
   if (agentId && agentStore.currentAgent?.id !== agentId) {
     agentStore.fetchAgent(agentId)
   }
+  // If navigated from /actions with ?turn=N, scroll to that turn after render.
+  // Two ticks because turnRefs is populated by v-for which renders after fetch.
+  const targetTurn = route.query.turn
+  if (targetTurn !== undefined) {
+    await nextTick(); await nextTick()
+    scrollToTurn(Number(targetTurn))
+  }
 }
 
 onMounted(() => load(route.params.id))
 watch(() => route.params.id, (id) => id && load(id))
+// Re-trigger scroll if ?turn changes while staying on the same call
+watch(() => route.query.turn, (t) => {
+  if (t !== undefined) nextTick(() => scrollToTurn(Number(t)))
+})
 
 async function scrollToTurn(turnIndex) {
   await nextTick()

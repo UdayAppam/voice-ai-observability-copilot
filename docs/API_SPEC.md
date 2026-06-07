@@ -58,8 +58,10 @@ Single agent detail: KPI defs, health, trend, last-7 sparkline, avg KPI scores, 
 ### `GET /api/agents/:id/calls?page=1&limit=20&status=all|pass|warning|fail`
 Paginated calls for one agent, with `topIssue` extracted from the analysis.
 
-### `GET /api/agents/:id/insights`
-Cross-call AI-generated patterns (cached in `agent_insights`). First call generates via OpenAI; subsequent calls return cache.
+### `GET /api/agents/:id/insights[?refresh=true]`
+Cross-call AI-generated patterns (cached in `agent_insights`). First call generates via OpenAI; subsequent calls return cache. Response includes `cached: true|false` so the UI can label freshness.
+
+Pass `?refresh=true` (or `?refresh=1`) to bypass cache and force a fresh OpenAI generation. Triggered by the `[↻ Re-analyse]` button on Agent Detail. Costs ~$0.005 per refresh; gated behind explicit user click.
 
 ### `GET /api/agents/:id/flywheel`
 Structured 5-stage data (numeric counts, history arrays) for the per-agent Flywheel. Distinct from `/flywheel/narrative` which returns prose.

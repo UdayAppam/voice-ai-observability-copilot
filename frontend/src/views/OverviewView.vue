@@ -49,6 +49,61 @@
       />
 
       <template v-else-if="summary">
+        <!-- First-time welcome card — dismissable, persists in localStorage -->
+        <div
+          v-if="showWelcome"
+          class="card p-3 border-l-4 border-l-accent-primary bg-accent-primary/5"
+        >
+          <div class="flex items-start gap-3">
+            <span class="text-base leading-none mt-0.5">👋</span>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-semibold text-text-primary mb-1">
+                Welcome to AI Copilot
+              </div>
+              <p class="text-xs text-text-secondary leading-relaxed mb-2">
+                This dashboard auto-scores every Voice AI call against your agent's KPIs,
+                surfaces the issues, suggests fixes, and measures whether those fixes worked.
+                Three places to start:
+              </p>
+              <ul class="text-xs text-text-secondary space-y-1 mb-2">
+                <li>
+                  <strong class="text-text-primary">♻️ Flywheel</strong> — the full loop
+                  overview (issues → recommendations → applied → measured)
+                </li>
+                <li>
+                  <strong class="text-text-primary">🔍 Patterns</strong> — recurring
+                  failure clusters across your agents, with paste-ready fixes
+                </li>
+                <li>
+                  <strong class="text-text-primary">⚠️ Actions</strong> — moments the AI
+                  flagged for human follow-up
+                </li>
+              </ul>
+              <div class="flex gap-2 mt-2">
+                <RouterLink
+                  to="/flywheel"
+                  class="text-xs px-2.5 py-1 rounded-card bg-accent-primary text-white font-semibold hover:bg-accent-secondary"
+                >
+                  Start with Flywheel →
+                </RouterLink>
+                <RouterLink
+                  to="/patterns"
+                  class="text-xs px-2.5 py-1 rounded-card border border-border-subtle text-text-secondary hover:text-text-primary"
+                >
+                  Or jump to Patterns
+                </RouterLink>
+              </div>
+            </div>
+            <button
+              class="text-text-muted hover:text-text-primary text-xs"
+              title="Dismiss (won't show again)"
+              @click="dismissWelcome"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
         <!-- Sync status banner -->
         <div
           v-if="syncStatus"
@@ -185,7 +240,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import { useAgentStore } from '@/stores/agentStore'
 import { useCallStore } from '@/stores/callStore'
 import client from '@/api/client'
@@ -213,6 +268,16 @@ const rangeDays = ref(30)
 const summary = ref(null)
 const flywheelSummary = ref(null)
 const loading = ref(false)
+
+// First-time welcome card — persists dismissal in localStorage
+const WELCOME_DISMISSED_KEY = 'copilot.welcomeDismissed'
+const showWelcome = ref(
+  typeof window !== 'undefined' && !localStorage.getItem(WELCOME_DISMISSED_KEY)
+)
+function dismissWelcome() {
+  showWelcome.value = false
+  if (typeof window !== 'undefined') localStorage.setItem(WELCOME_DISMISSED_KEY, '1')
+}
 
 // ─── Demo-scale switch ──────────────────────────────────────────────
 // Visit /dashboard/?demo-scale=100 to pad AgentStatusStrip with 100 synthetic

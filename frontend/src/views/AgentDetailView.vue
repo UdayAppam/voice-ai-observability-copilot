@@ -123,11 +123,31 @@
 
         <!-- AI Insights -->
         <div class="card p-3 mb-3">
-          <h3 class="text-xs font-semibold text-hl-text uppercase mb-2">
-            AI Insights
-          </h3>
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h3 class="text-xs font-semibold text-hl-text uppercase">
+                AI Insights
+              </h3>
+              <p
+                v-if="agentStore.currentInsights?.generatedAt"
+                class="text-[10px] text-text-muted mt-0.5"
+              >
+                Analysed {{ agentStore.currentInsights.callCount }} call{{ agentStore.currentInsights.callCount === 1 ? '' : 's' }}
+                · {{ insightsAge }}
+                · OpenAI gpt-4o-mini
+              </p>
+            </div>
+            <button
+              class="text-[11px] px-2 py-1 rounded-sm border border-border-subtle text-text-secondary hover:text-text-primary hover:border-accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="agentStore.insightsLoading"
+              title="Re-runs the AI analysis across this agent's recent calls. Costs ~$0.005 in OpenAI."
+              @click="reanalyseInsights"
+            >
+              {{ agentStore.insightsLoading ? '…' : '↻ Re-analyse' }}
+            </button>
+          </div>
           <LoadingSpinner
-            v-if="agentStore.insightsLoading"
+            v-if="agentStore.insightsLoading && !agentStore.currentInsights"
             size="sm"
             label="Analyzing call history..."
           />
@@ -276,6 +296,26 @@ onMounted(loadAll)
 watch(() => route.params.id, () => {
   statusFilter.value = 'all'
   loadAll()
+})
+
+// Force-regenerate AI insights (Re-analyse button on the AI Insights card).
+// Costs 1 OpenAI call (~$0.005). Gated behind explicit user click — never
+// auto-triggered.
+function reanalyseInsights() {
+  agentStore.fetchInsights(route.params.id, { refresh: true })
+}
+
+// "3h ago" relative time for the insights freshness line
+const insightsAge = computed(() => {
+  const iso = agentStore.currentInsights?.generatedAt
+  if (!iso) return ''
+  const ms = Date.now() - new Date(iso.replace(' ', 'T') + (iso.endsWith('Z') ? '' : 'Z')).getTime()
+  if (ms < 0 || Number.isNaN(ms)) return ''
+  const min = ms / 60000
+  if (min < 1)            return 'just now'
+  if (min < 60)           return `${Math.round(min)}m ago`
+  if (min < 60 * 24)      return `${Math.round(min / 60)}h ago`
+  return `${Math.round(min / (60 * 24))}d ago`
 })
 
 function onKpisUpdated(updatedKpis) {

@@ -68,6 +68,9 @@ Monitor + Analyze are the FSB Core Functionality. The Validation Flywheel is the
 | Use Action queue with `resolve / dismiss / escalate` verbs | **Live** |
 | Hallucination detection — "unverified claims by agent" in the UI (7th validator) | **Live** — surfaces fabricated facts, invented policies, made-up capabilities, wrong prices, unverified claims. Call Detail page shows each flagged turn with `what the agent said` / `why flagged` / `why it matters` / `what to do`. Empty arrays on clean transcripts (not a bug). |
 | Deterministic per-stage narratives (what / why / evidence / action) | **Live** — no extra OpenAI cost |
+| First-time onboarding (dismissable welcome card on Overview, dismissable hallucination explainer on Call Detail) | **Live** — persists dismissal in localStorage |
+| AI Insights freshness display + on-demand `[↻ Re-analyse]` | **Live** — `GET /api/agents/:id/insights?refresh=true` bypasses cache |
+| Actions queue → Call Detail with `?turn=N` auto-scroll | **Live** — one-click jump from triage queue to flagged transcript turn |
 | OAuth Marketplace install flow (`/api/oauth/callback`) | **Live** — per-location tokens persisted |
 | **V4 — One-click apply: writes recommendation directly to HL Voice AI agent via PATCH** | **Live** — `HLVoiceAgentService` + `ApplyRecommendationService`. Verified by 27/27 live regression assertions against the HL sandbox |
 | **V4 — Editable diff modal: user can tune the AI suggestion before commit** | **Live** — debounced 300ms validators re-run on every keystroke; Confirm button label switches between `Apply AI suggestion` and `Apply your edit` |
