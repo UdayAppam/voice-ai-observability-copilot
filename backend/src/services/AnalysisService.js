@@ -253,7 +253,7 @@ class AnalysisService {
       // Promote each recommendation into the first-class recommendations table
       // so it's tracked across the lifecycle (active → applied → measured).
       const currentVersionId = PromptVersionService.getCurrentVersionId(agent.id)
-      RecommendationService.persistFromAnalysis(agent.id, call.id, result.recommendations, currentVersionId)
+      await RecommendationService.persistFromAnalysis(agent.id, call.id, result.recommendations, currentVersionId)
       // Compute outcomes for any applied recs that now have enough post-apply calls
       RecommendationService.computePendingOutcomes()
 

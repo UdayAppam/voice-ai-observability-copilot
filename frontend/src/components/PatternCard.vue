@@ -20,6 +20,13 @@
             class="text-[10px] px-1.5 py-0.5 rounded-sm font-mono uppercase"
             :class="urgencyBadge"
           >{{ pattern.urgencyDescriptor }}</span>
+          <!-- NEW: apply-state pill — answers "is this pattern outstanding for me?" -->
+          <span
+            v-if="rollup"
+            class="text-[10px] px-1.5 py-0.5 rounded-sm font-mono"
+            :class="applyStateBadge"
+            :title="applyStateTitle"
+          >{{ applyStateLabel }}</span>
           <span class="text-[10px] text-text-muted">
             <strong class="text-text-primary">Detected in {{ pattern.callsAffected }} call{{ pattern.callsAffected === 1 ? '' : 's' }}</strong>
             <span v-if="pattern.failedCallsAffected > 0">
@@ -72,51 +79,77 @@
       <span class="text-text-muted text-xs ml-1">{{ expanded ? '▴' : '▾' }}</span>
     </div>
 
-    <!-- Expanded detail — per-agent breakdown -->
+    <!-- Expanded detail — per-agent breakdown, SPLIT by status -->
     <div
       v-if="expanded"
-      class="border-t border-border-subtle px-3 py-3 space-y-2 bg-bg-base"
+      class="border-t border-border-subtle px-3 py-3 space-y-3 bg-bg-base"
     >
-      <div class="text-[10px] text-text-muted uppercase tracking-wide">
-        Affected agents
+      <!-- STILL NEEDED section — the action queue -->
+      <div v-if="agentsStillActive.length > 0">
+        <div class="text-[10px] text-fail-text uppercase tracking-wide mb-1.5 font-semibold flex items-center gap-2">
+          ⚠ Still needs apply on {{ agentsStillActive.length }} agent{{ agentsStillActive.length === 1 ? '' : 's' }}
+        </div>
+        <div class="space-y-1.5">
+          <div
+            v-for="ag in agentsStillActive"
+            :key="ag.id"
+            class="flex items-start gap-2 text-xs flex-wrap pl-2 border-l-2 border-fail/30"
+          >
+            <RouterLink
+              :to="`/agents/${ag.agentId}`"
+              class="text-text-primary hover:text-accent-primary-text font-semibold shrink-0"
+            >
+              {{ ag.agentName }}
+            </RouterLink>
+            <span class="text-text-muted shrink-0">
+              · flagged in {{ ag.callsAffected }} call{{ ag.callsAffected === 1 ? '' : 's' }}<span
+                v-if="ag.failedCallsAffected > 0"
+              > <span class="text-fail-text">({{ ag.failedCallsAffected }} failed)</span></span>
+            </span>
+            <span
+              v-if="ag.suggestedChange"
+              class="text-text-secondary italic ml-2 truncate flex-1 min-w-0"
+            >"{{ ag.suggestedChange }}"</span>
+            <ApplyRecommendationButton
+              class="shrink-0 ml-auto"
+              :recommendation="{ id: ag.id, agentId: ag.agentId, title: pattern.title, severity: ag.severity }"
+              :agent-name="ag.agentName"
+              @applied="$emit('rec-applied', ag)"
+            />
+          </div>
+        </div>
       </div>
+
+      <!-- ALREADY APPLIED section — collapsed by default to reduce noise -->
+      <div v-if="agentsApplied.length > 0">
+        <div class="text-[10px] text-pass uppercase tracking-wide mb-1.5 font-semibold flex items-center gap-2">
+          ✓ Already applied on {{ agentsApplied.length }} agent{{ agentsApplied.length === 1 ? '' : 's' }}
+        </div>
+        <div class="space-y-1 text-xs">
+          <div
+            v-for="ag in agentsApplied"
+            :key="ag.id"
+            class="flex items-center gap-2 pl-2 border-l-2 border-pass/30 text-text-secondary"
+          >
+            <RouterLink
+              :to="`/agents/${ag.agentId}`"
+              class="hover:text-accent-primary-text font-medium"
+            >
+              {{ ag.agentName }}
+            </RouterLink>
+            <span class="text-text-muted">
+              · flagged in {{ ag.callsAffected }} call{{ ag.callsAffected === 1 ? '' : 's' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- DISMISSED — minimal, just count -->
       <div
-        v-for="ag in pattern.agents"
-        :key="ag.id"
-        class="flex items-start gap-2 text-xs flex-wrap"
+        v-if="agentsDismissed.length > 0"
+        class="text-[10px] text-text-muted"
       >
-        <span
-          class="text-[10px] px-1.5 py-0.5 rounded-sm font-mono shrink-0 mt-0.5"
-          :class="statusBadge(ag.status)"
-        >{{ ag.status }}</span>
-        <RouterLink
-          :to="`/agents/${ag.agentId}`"
-          class="text-text-primary hover:text-accent-primary font-semibold shrink-0"
-        >
-          {{ ag.agentName }}
-        </RouterLink>
-        <span class="text-text-muted shrink-0">·</span>
-        <span class="text-text-muted shrink-0">
-          flagged in {{ ag.callsAffected }} call{{ ag.callsAffected === 1 ? '' : 's' }}<span
-            v-if="ag.failedCallsAffected > 0"
-          > <span class="text-fail">({{ ag.failedCallsAffected }} failed)</span></span>
-        </span>
-        <span
-          v-if="ag.suggestedChange"
-          class="text-text-secondary italic ml-2 truncate flex-1 min-w-0"
-        >"{{ ag.suggestedChange }}"</span>
-        <!-- V4: one-click Apply via HL Voice AI API -->
-        <ApplyRecommendationButton
-          v-if="ag.status === 'active'"
-          class="shrink-0 ml-auto"
-          :recommendation="{ id: ag.id, agentId: ag.agentId, title: pattern.title, severity: ag.severity }"
-          :agent-name="ag.agentName"
-          @applied="$emit('rec-applied', ag)"
-        />
-        <span
-          v-else-if="ag.status === 'applied'"
-          class="shrink-0 ml-auto text-[10px] text-pass"
-        >✓ Applied</span>
+        + {{ agentsDismissed.length }} dismissed on other agent{{ agentsDismissed.length === 1 ? '' : 's' }}
       </div>
     </div>
   </div>
@@ -175,4 +208,39 @@ const total = computed(() =>
   props.pattern.statusBreakdown.active + props.pattern.statusBreakdown.applied + props.pattern.statusBreakdown.dismissed
 )
 function pct(n) { return total.value > 0 ? (n / total.value) * 100 : 0 }
+
+// ── Per-agent rollup (NEW backend field) ───────────────────────────────
+// Backend now returns:
+//   pattern.agentRollup      = { totalAgents, agentsApplied, agentsActive, agentsDismissed, applyState }
+//   pattern.agentsApplied    = [{...agent details...}] — agents where it's already applied
+//   pattern.agentsStillActive= [{...}] — agents where it's still queued
+//   pattern.agentsDismissed  = [{...}]
+// These let us split the expanded view + show the headline apply-state pill.
+const rollup = computed(() => props.pattern.agentRollup || null)
+const agentsApplied     = computed(() => props.pattern.agentsApplied || [])
+const agentsStillActive = computed(() => props.pattern.agentsStillActive || [])
+const agentsDismissed   = computed(() => props.pattern.agentsDismissed || [])
+
+const applyStateLabel = computed(() => {
+  const r = rollup.value
+  if (!r) return ''
+  if (r.applyState === 'all_applied')  return `✓ Applied to all ${r.totalAgents}`
+  if (r.applyState === 'partial')      return `Applied ${r.agentsApplied}/${r.totalAgents} · ${r.agentsActive} still needed`
+  if (r.applyState === 'not_started')  return `Not yet applied (${r.totalAgents} agent${r.totalAgents === 1 ? '' : 's'})`
+  return ''
+})
+const applyStateBadge = computed(() => {
+  const r = rollup.value
+  if (!r) return ''
+  if (r.applyState === 'all_applied') return 'bg-pass/15 text-pass'
+  if (r.applyState === 'partial')     return 'bg-warn/15 text-warn'
+  return 'bg-fail/15 text-fail-text'
+})
+const applyStateTitle = computed(() => {
+  const r = rollup.value
+  if (!r) return ''
+  if (r.applyState === 'all_applied') return 'Every affected agent has this fix applied. No action needed.'
+  if (r.applyState === 'partial')     return `Applied on ${r.agentsApplied} agent(s); still queued on ${r.agentsActive} other agent(s).`
+  return `Active recommendation on ${r.totalAgents} agent(s). Apply per-agent to roll out.`
+})
 </script>

@@ -18,6 +18,7 @@ const logger = require('../logger')
 const HLVoiceAgentService = require('./HLVoiceAgentService')
 const RecommendationValidatorService = require('./RecommendationValidatorService')
 const EditSummaryService = require('./EditSummaryService')
+const PromptVersionService = require('./PromptVersionService')
 
 // Idempotency window: a second Apply for the same rec within 5 min returns the
 // existing receipt (handles double-clicks during the 2-5s orchestration).
@@ -85,12 +86,32 @@ class ApplyRecommendationService {
       timeline[timeline.length - 1].hlResponseStatus = 200
       timeline[timeline.length - 1].newPromptLength = patchedAgent.agentPrompt?.length
 
+      // Record the new prompt version so we can causally measure outcomes.
+      // Without this, applied_prompt_version_id stays NULL and
+      // computePendingOutcomes can never match calls to this rec → outcomes
+      // never compute. This was the bug: V4 auto-apply marked status='applied'
+      // but skipped version recording (only the sync-detected path did it).
+      const promptVersionResult = PromptVersionService.recordIfChanged({
+        id: agentId,
+        name: agent.name,
+        script: finalText,
+        goal: agent.goal,
+      })
+      timeline.push({
+        step: 'record_prompt_version',
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        versionId: promptVersionResult.versionId,
+        isNew: promptVersionResult.isNew,
+      })
+
       timeline.push({ step: 'mark_applied', startedAt: new Date().toISOString() })
       db.prepare(`
         UPDATE recommendations
-          SET status='applied', applied_at=?, applied_via='auto_api', apply_error=NULL
+          SET status='applied', applied_at=?, applied_via='auto_api',
+              applied_prompt_version_id=?, apply_error=NULL
           WHERE id = ?
-      `).run(new Date().toISOString(), recommendationId)
+      `).run(new Date().toISOString(), promptVersionResult.versionId, recommendationId)
       timeline[timeline.length - 1].completedAt = new Date().toISOString()
 
       timeline.push({ step: 'edit_summary', startedAt: new Date().toISOString() })

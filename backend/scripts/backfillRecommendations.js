@@ -40,14 +40,18 @@ const analyses = db.prepare(`
 
 let totalCreated = 0
 let totalUpdated = 0
-for (const row of analyses) {
-  const recs = JSON.parse(row.recommendations_json || '[]')
-  if (recs.length === 0) continue
-  const currentVersion = PromptVersionService.getCurrentVersionId(row.agent_id)
-  const { created, updated } = RecommendationService.persistFromAnalysis(row.agent_id, recs, currentVersion)
-  totalCreated += created
-  totalUpdated += updated
-}
+;(async () => {
+  for (const row of analyses) {
+    const recs = JSON.parse(row.recommendations_json || '[]')
+    if (recs.length === 0) continue
+    const currentVersion = PromptVersionService.getCurrentVersionId(row.agent_id)
+    // persistFromAnalysis is now async (semantic dedup pass added).
+    // Pass null for callId — backfill doesn't have a single call to link to.
+    const { created, updated } = await RecommendationService.persistFromAnalysis(row.agent_id, null, recs, currentVersion)
+    totalCreated += created
+    totalUpdated += updated
+  }
+})()
 
 logger.info(
   { agentsScanned: agents.length, promptVersionsCreated, totalCreated, totalUpdated, analysesScanned: analyses.length },

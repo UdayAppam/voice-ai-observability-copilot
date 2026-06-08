@@ -8,16 +8,19 @@ const DAY = 86400e3
 
 class NarrativeService {
   // Returns a narrative object per stage:
-  //   { what, why, evidence: [{label, type, refId}], actionLabel, actionHref }
-  static buildAll({ days = 30 } = {}) {
+  //   { what, why, evidence: [{label, type, refId}], actionLabel, actionHref, producesRows[] }
+  //
+  // `mode`: 'window' (default) scopes recommendation counts to the time window
+  // so card headlines match the funnel above them. 'all-time' shows cumulative.
+  static buildAll({ days = 30, mode = 'window' } = {}) {
     const sinceISO    = new Date(Date.now() - days * DAY).toISOString()
     const priorSince  = new Date(Date.now() - 2 * days * DAY).toISOString()
     return {
       ingest:    this._buildIngest(sinceISO, priorSince),
       score:     this._buildScore(sinceISO, priorSince),
-      recommend: this._buildRecommend(sinceISO),
-      apply:     this._buildApply(sinceISO),
-      measure:   this._buildMeasure(),
+      recommend: this._buildRecommend(sinceISO, mode),
+      apply:     this._buildApply(sinceISO, mode),
+      measure:   this._buildMeasure(sinceISO, mode),
     }
   }
 
@@ -261,6 +264,7 @@ class NarrativeService {
       evidence: perAgent.map((a) => ({ label: `${a.agentName}: ${a.n}`, type: 'agent_contrib' })),
       actionLabel: '↻ Sync from HighLevel',
       actionHref: '#sync',
+      producesRows: ['Issues Detected'],
     }
   }
 
@@ -335,14 +339,19 @@ class NarrativeService {
       })),
       actionLabel: 'View failure patterns →',
       actionHref: '/patterns',
+      producesRows: ['Issues Detected'],
     }
   }
 
   // ── Stage 3: Recommend ────────────────────────────────────────────────
-  static _buildRecommend(sinceISO) {
-    const counts = db.prepare(`
-      SELECT status, COUNT(*) as n FROM recommendations GROUP BY status
-    `).all()
+  static _buildRecommend(sinceISO, mode = 'window') {
+    const W = mode === 'window'
+    // When windowed, count only recommendations whose first_seen_at falls inside
+    // the period — so the card headline ("X active · Y applied") agrees with
+    // the funnel above. All-time mode falls back to the original behaviour.
+    const counts = W
+      ? db.prepare(`SELECT status, COUNT(*) as n FROM recommendations WHERE first_seen_at >= ? GROUP BY status`).all(sinceISO)
+      : db.prepare(`SELECT status, COUNT(*) as n FROM recommendations GROUP BY status`).all()
     const map = { active: 0, applied: 0, dismissed: 0 }
     counts.forEach((r) => { map[r.status] = r.n })
 
@@ -387,8 +396,13 @@ class NarrativeService {
     const top = topRecs[0]
     const why = `${distribution}${newBit}. Most-pressing pattern: "${top?.title || '—'}" affects ${top?.agentCount || '?'} agent${top?.agentCount === 1 ? '' : 's'}.`
 
+    // Label is intentionally consistent with the funnel above:
+    //   funnel says "Recommendations Generated: 43"
+    //   card says   "43 generated · 41 pending, 2 applied"
+    // Same total, decomposed.
+    const totalGenerated = map.active + map.applied + map.dismissed
     return {
-      what: `${map.active} active recommendations · ${map.applied} applied`,
+      what: `${totalGenerated} generated · ${map.active} pending, ${map.applied} applied${map.dismissed > 0 ? `, ${map.dismissed} dismissed` : ''}`,
       why,
       evidence: topRecs.map((r) => ({
         label: `${this._sevIcon(r.severity)} ${r.title.slice(0, 50)}`,
@@ -397,12 +411,16 @@ class NarrativeService {
       })),
       actionLabel: 'Open Patterns →',
       actionHref: '/patterns',
+      producesRows: ['Recommendations Generated'],
     }
   }
 
   // ── Stage 4: Apply ────────────────────────────────────────────────────
-  static _buildApply(sinceISO) {
-    const versionsTotal = db.prepare('SELECT COUNT(*) as n FROM agent_prompt_versions').get().n
+  static _buildApply(sinceISO, mode = 'window') {
+    const W = mode === 'window'
+    const versionsTotal = W
+      ? db.prepare('SELECT COUNT(*) as n FROM agent_prompt_versions WHERE first_seen_at >= ?').get(sinceISO).n
+      : db.prepare('SELECT COUNT(*) as n FROM agent_prompt_versions').get().n
     const recentChanges = db.prepare(`
       SELECT apv.id, apv.agent_id, ag.name as agentName, apv.first_seen_at,
              (SELECT COUNT(*) FROM recommendations r WHERE r.applied_prompt_version_id = apv.id) as appliedCount
@@ -412,9 +430,9 @@ class NarrativeService {
       ORDER BY apv.first_seen_at DESC LIMIT 3
     `).all(sinceISO)
 
-    const totalApplied = db.prepare(
-      "SELECT COUNT(*) as n FROM recommendations WHERE status = 'applied'"
-    ).get().n
+    const totalApplied = W
+      ? db.prepare("SELECT COUNT(*) as n FROM recommendations WHERE status = 'applied' AND applied_at >= ?").get(sinceISO).n
+      : db.prepare("SELECT COUNT(*) as n FROM recommendations WHERE status = 'applied'").get().n
 
     if (versionsTotal === 0) {
       return {
@@ -422,6 +440,7 @@ class NarrativeService {
         why: 'Versions get recorded on the next Sync All. No agents have been ingested yet.',
         evidence: [],
         actionLabel: null, actionHref: null,
+        producesRows: ['Recommendations Applied'],
       }
     }
 
@@ -453,24 +472,37 @@ class NarrativeService {
       })),
       actionLabel,
       actionHref,
+      producesRows: ['Recommendations Applied'],
     }
   }
 
   // ── Stage 5: Measure ──────────────────────────────────────────────────
-  static _buildMeasure() {
-    const measured = db.prepare(`
+  static _buildMeasure(sinceISO, mode = 'window') {
+    const W = mode === 'window'
+    // Recent measured (LIMIT 5) is for evidence display only.
+    const recentMeasured = db.prepare(`
       SELECT id, title, before_avg_score, after_avg_score, before_sample_size, after_sample_size,
              (after_avg_score - before_avg_score) as delta
       FROM recommendations
-      WHERE outcome_computed_at IS NOT NULL
+      WHERE outcome_computed_at IS NOT NULL ${W ? 'AND outcome_computed_at >= ?' : ''}
       ORDER BY applied_at DESC LIMIT 5
-    `).all()
+    `).all(...(W ? [sinceISO] : []))
 
-    const totalApplied = db.prepare(
-      "SELECT COUNT(*) as n FROM recommendations WHERE status = 'applied'"
-    ).get().n
-    const totalMeasured = measured.length
-    const pendingMeasurement = totalApplied - totalMeasured
+    // Stats compute over ALL measured rows in the window — not just the latest 5
+    // (the prior version had a misleading "success rate" using only LIMIT 5).
+    // MUST select after_sample_size — the significance filter below depends on it.
+    const allMeasured = db.prepare(`
+      SELECT before_avg_score, after_avg_score, after_sample_size, before_sample_size,
+             (after_avg_score - before_avg_score) as delta
+      FROM recommendations
+      WHERE outcome_computed_at IS NOT NULL ${W ? 'AND outcome_computed_at >= ?' : ''}
+    `).all(...(W ? [sinceISO] : []))
+
+    const totalApplied = W
+      ? db.prepare("SELECT COUNT(*) as n FROM recommendations WHERE status = 'applied' AND applied_at >= ?").get(sinceISO).n
+      : db.prepare("SELECT COUNT(*) as n FROM recommendations WHERE status = 'applied'").get().n
+    const totalMeasured = allMeasured.length
+    const pendingMeasurement = Math.max(0, totalApplied - totalMeasured)
 
     if (totalApplied === 0) {
       return {
@@ -478,6 +510,7 @@ class NarrativeService {
         why: 'Outcomes appear after a recommendation is applied (i.e., the agent prompt is updated in HighLevel) and new calls are scored under the new prompt.',
         evidence: [],
         actionLabel: null, actionHref: null,
+        producesRows: ['Outcomes Measured', 'Improved Scores'],
       }
     }
 
@@ -488,18 +521,22 @@ class NarrativeService {
         evidence: [],
         actionLabel: 'See applied recs →',
         actionHref: '/patterns?status=applied',
+        producesRows: ['Outcomes Measured', 'Improved Scores'],
       }
     }
 
-    const improved = measured.filter((m) => m.delta > 0)
-    const regressed = measured.filter((m) => m.delta < 0)
-    const successRate = Math.round((improved.length / totalMeasured) * 100)
+    // ALL improvements (any positive delta) vs SIGNIFICANT (delta ≥ 2 AND n ≥ 3).
+    const improvedAny    = allMeasured.filter((m) => m.delta > 0)
+    const improvedSignif = allMeasured.filter((m) => m.delta >= 2 && m.after_sample_size >= 3)
+    const successRate    = Math.round((improvedAny.length / totalMeasured) * 100)
+    const trustedRate    = Math.round((improvedSignif.length / totalMeasured) * 100)
 
-    const best = improved.sort((a, b) => b.delta - a.delta)[0]
-    const worst = regressed.sort((a, b) => a.delta - b.delta)[0]
+    // Best/worst pulled from recentMeasured (which is LIMIT 5, fine for evidence cues).
+    const best  = recentMeasured.filter((m) => m.delta > 0).sort((a, b) => b.delta - a.delta)[0]
+    const worst = recentMeasured.filter((m) => m.delta < 0).sort((a, b) => a.delta - b.delta)[0]
 
-    let why = `${improved.length} of ${totalMeasured} measured recommendations improved scores`
-    if (best) why += `. Best: "${best.title}" delivered +${Math.round(best.delta * 10) / 10} pts (n=${best.after_sample_size})`
+    let why = `${improvedAny.length}/${totalMeasured} improved (${successRate}%) — ${improvedSignif.length} significantly (Δ≥2 pts, n≥3)`
+    if (best)  why += `. Best: "${best.title}" +${Math.round(best.delta * 10) / 10} pts (n=${best.after_sample_size})`
     if (worst) {
       const d = Math.round(worst.delta * 10) / 10
       why += `. Regression: "${worst.title}" ${d > 0 ? '+' + d : d} pts (re-investigate)`
@@ -507,15 +544,16 @@ class NarrativeService {
     why += '.'
 
     return {
-      what: `${successRate}% success rate · ${totalMeasured} measured · ${pendingMeasurement} pending`,
+      what: `${trustedRate}% significant · ${totalMeasured} measured · ${pendingMeasurement} pending`,
       why,
-      evidence: measured.slice(0, 3).map((m) => ({
+      evidence: recentMeasured.slice(0, 3).map((m) => ({
         label: `${m.delta > 0 ? '+' : ''}${Math.round(m.delta * 10) / 10}: ${m.title.slice(0, 40)}`,
         type: 'recommendation',
         refId: m.id,
       })),
       actionLabel: 'Apply the next recommendation →',
       actionHref: '/patterns',
+      producesRows: ['Outcomes Measured', 'Improved Scores'],
     }
   }
 

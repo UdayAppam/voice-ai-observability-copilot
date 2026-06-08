@@ -47,20 +47,22 @@ Target: **4 minutes** (range 3:30 – 4:45).
 [Point at MonitorAnalyzeHero · then briefly the AgentStatusStrip]
 
 #### 1:00 — The Validation Flywheel (45s) — the FSB framing concept
-[Click ♻️ Flywheel tab]
+[Click ♻️ Flywheel tab — opens to a clean 2-hero layout]
 
-> "And here's the framing the FSB doc calls the **Validation Flywheel**. Five stages — Ingest, Score, Recommend, Apply, Measure — and unlike a typical analytics tool, we don't stop at 'here's a recommendation.' We measure whether the fix actually improved the score."
+> "And here's the FSB's framing — the **Validation Flywheel**. But notice what's NOT here: a wall of charts. The page answers two questions in 3 seconds. Hero 1: **+8 significant improvements** — that's the headline. Hero 2: **What's blocking us next.** Below, a one-line lifecycle: **11 issues → 25 recs generated → 9 applied → 9 measured → 8 improved** — the loop in a sentence."
 
-[Click the **Measure** stage to expand it]
+[Point at the headline metric and the lifecycle sentence — the leak step shows in red if any]
 
-> "Look at this: this period **3 recommendations were applied** to agent prompts, all 3 were **measured against the prior version**, and the average score improvement was **+12.5 points**. That's 100% success rate — causal proof that AI Copilot's recommendations actually work. The Flywheel closes."
+> "Unlike a typical analytics tool, we don't stop at 'here's a recommendation.' We **causally measure** — Δ≥2 points AND n≥3 calls — whether each fix actually improved scores. **8 of 9 measured outcomes** improved significantly. Cycle time: **1.1 days** from issue detected to fix applied. The Flywheel closes — with significance, not just claims."
 
-#### 1:45 — Patterns: see the recurring issues (30s)
+[Optionally click "▸ Drill in" to reveal funnel + per-stage operational cards if pacing allows]
+
+#### 1:45 — Patterns: per-agent rollup, no fake duplicates (30s)
 [Click 🔍 Patterns]
 
-> "Issues don't happen once. The Patterns view clusters them: 'Capture Lead Data' — **detected in 3 calls, all 3 failed, on FrontDoor AI.** That `recurring` badge means this isn't a one-off; it's a systemic issue worth fixing once instead of triaging three times."
+> "Issues recur across agents. Each pattern card now shows an **apply-state pill**: this one says **Applied 1 of 2 — 1 still needed**. That's because the same recommendation is applied for Maya but still active for FrontDoor — not a duplicate, it's per-agent work. Expand the card and the view **splits**: '⚠ Still needs apply on FrontDoor AI' with an inline [Apply] button, plus '✓ Already applied on Maya' below for context. The product knows the difference between cross-agent work and a stale duplicate — and semantic dedup catches near-duplicate titles like 'Capture Caller Details' ≈ 'Capture Caller Information' before they even appear."
 
-[Expand the top critical pattern, reveal the per-agent breakdown + the AI's paste-ready suggested change + the `▶ Apply to FrontDoor AI` button]
+[Expand one partial-state pattern to show the split sections]
 
 ---
 
@@ -86,11 +88,11 @@ Target: **4 minutes** (range 3:30 – 4:45).
 
 [Click `▶ Apply AI suggestion`]
 
-> "Two seconds. We **snapshotted the previous prompt**, **PATCHed the live HighLevel Voice AI agent**, marked the recommendation applied. Receipt shows every step with timestamps. The agent is now running the new prompt — next inbound call hits it."
+> "Two seconds. We **snapshotted the previous prompt**, **PATCHed the live HighLevel Voice AI agent**, **recorded a new prompt version**, and **linked the recommendation to that version**. That last step is what closes the measurement loop — the next call ingested under the new prompt automatically triggers `computePendingOutcomes`. Receipt shows every step with timestamps."
 
-[Point at the receipt timeline · then close]
+[Point at the receipt timeline — note the `record_prompt_version` step · then close]
 
-> "If the next batch of calls regresses the score, I click Rollback — previous prompt restored in one second. **Detection → fix in production → measurement → optional revert. End-to-end loop closed in under 30 seconds per fix.**"
+> "If the next batch of calls regresses the score, I click Rollback — previous prompt restored in one second. **Detection → fix in production → automatic measurement → optional revert. End-to-end loop closed.**"
 
 ---
 
@@ -118,7 +120,7 @@ bash .runtime/use-data.sh live
 
 ### ACT 5 · CLOSE (4:15 – 4:30)
 
-> "Built solo over a few days. Node + Vue, SQLite via the built-in `node:sqlite`, OpenAI structured output, embedded in HighLevel via Marketplace App OAuth — dashboard sits in the HL left nav as a Custom Menu Link. V4 one-click apply against the HL Voice AI API is live and battle-tested — 27 of 27 regression assertions passing against the real sandbox. Architecture docs, V4 plan, full regression suite all in the GitHub README."
+> "Built solo. Node + Vue, SQLite via the built-in `node:sqlite`, OpenAI structured output, embedded in HighLevel via Marketplace App OAuth — dashboard sits in the HL left nav as a Custom Menu Link. V4 one-click apply against the HL Voice AI API is live and battle-tested — **27/27 V4 regression assertions** and **14/14 V4.2 validator assertions** passing against the real sandbox. The V4.3 measurement chain was found broken by PM-style audit and fixed; verified end-to-end on live data. Architecture docs, V4 plan, full regression suite all in the GitHub README."
 
 [End on the dashboard with the Flywheel measure stage visible — closes with the "loop is closed" image]
 
@@ -198,6 +200,6 @@ That's 2:15 total. Loses depth but hits the FSB rubric items.
 ## Submission checklist
 
 - [ ] Loom URL added to README + submission form
-- [ ] GitHub repo URL: https://github.com/UdayAppam/voice-ai-observability-copilot
+- [ ] GitHub repo URL: https://github.com/UdayAppam/voice-agent-flywheel
 - [ ] Cloudflared tunnel URL (or stable demo URL) tested 5 min before sending — verify a fresh browser can load `/dashboard/`
 - [ ] Brief reviewer note in submission body: "Demo on test data; live HL data toggle shown at ~3:50"

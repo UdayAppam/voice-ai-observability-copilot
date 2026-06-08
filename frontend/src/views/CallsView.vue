@@ -67,14 +67,14 @@
           Sort by:
           <button
             class="btn-ghost"
-            :class="{ 'text-accent-primary': sortBy === 'date' }"
+            :class="{ 'text-accent-primary-text': sortBy === 'date' }"
             @click="setSort('date')"
           >
             Date {{ sortBy === 'date' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
           </button>
           <button
             class="btn-ghost"
-            :class="{ 'text-accent-primary': sortBy === 'score' }"
+            :class="{ 'text-accent-primary-text': sortBy === 'score' }"
             @click="setSort('score')"
           >
             KPI {{ sortBy === 'score' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
@@ -281,7 +281,7 @@ function scoreColor(s) {
   if (s === null || s === undefined) return 'text-text-muted'
   if (s >= 70) return 'text-pass'
   if (s >= 50) return 'text-warn'
-  return 'text-fail'
+  return 'text-fail-text'
 }
 function formatDuration(s) {
   if (!s) return '—'

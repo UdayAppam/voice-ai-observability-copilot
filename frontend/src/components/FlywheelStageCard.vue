@@ -1,7 +1,9 @@
 <template>
   <div
-    class="card transition-all duration-200"
-    :class="expanded ? 'border-accent-primary/40 shadow-glow' : 'cursor-pointer hover:border-border-strong'"
+    class="card transition-all duration-200 group"
+    :class="expanded
+      ? 'border-accent-primary/40 shadow-glow'
+      : 'cursor-pointer hover:border-accent-primary/30 hover:shadow-glow/50 hover:-translate-y-0.5'"
     @click="!expanded && $emit('expand')"
   >
     <!-- COLLAPSED HEADER -->
@@ -34,14 +36,16 @@
       </div>
       <button
         v-if="expanded"
-        class="text-text-muted hover:text-text-primary text-xs"
+        class="text-text-muted hover:text-text-primary text-xs leading-none p-1 -m-1"
+        :title="'Collapse ' + name"
         @click.stop="$emit('collapse')"
       >
         ✕
       </button>
       <span
         v-else
-        class="text-text-muted text-xs"
+        class="text-text-muted text-base leading-none transition-transform group-hover:text-accent-primary-text group-hover:translate-y-0.5"
+        title="Click to expand"
       >▾</span>
     </div>
 
@@ -50,6 +54,20 @@
       v-if="expanded"
       class="border-t border-border-subtle px-3 py-3 space-y-3"
     >
+      <!-- Which funnel rows this stage produces — lets the user link the
+           card back to the bars above. Only shown when backend supplied it. -->
+      <div
+        v-if="narrative.producesRows && narrative.producesRows.length > 0"
+        class="text-[10px] text-text-muted"
+      >
+        Feeds funnel:
+        <span
+          v-for="(row, i) in narrative.producesRows"
+          :key="row"
+          class="text-text-secondary font-mono"
+        >{{ row }}<span v-if="i < narrative.producesRows.length - 1">, </span></span>
+      </div>
+
       <div>
         <div class="text-[10px] text-text-muted uppercase tracking-wide mb-1">
           Why
@@ -82,7 +100,7 @@
         <component
           :is="actionComponent"
           v-bind="actionProps"
-          class="inline-flex items-center gap-1 text-xs font-semibold text-accent-primary hover:text-accent-secondary"
+          class="inline-flex items-center gap-1 text-xs font-semibold text-accent-primary-text hover:text-accent-secondary-text hover:underline"
         >
           {{ narrative.actionLabel }}
         </component>

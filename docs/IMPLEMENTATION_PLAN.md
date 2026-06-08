@@ -1,6 +1,6 @@
 # Implementation Plan
 
-What was built, in what order, and what comes next. Reflects the system as shipped on 2026-06-06.
+What was built, in what order, and what comes next. Reflects the system as of 2026-06-09 (`v4.5`).
 
 ---
 
@@ -9,7 +9,7 @@ What was built, in what order, and what comes next. Reflects the system as shipp
 Make the agency owner's life easier by turning Voice AI call transcripts into automatic, validated, prompt-level improvements — with two clear loops that close themselves:
 
 1. **Monitor + Analyze (FSB Core Functionality)** — every sub-item from the PDF visibly addressed.
-2. **Validation Flywheel** — every applied recommendation gets measured; the loop is observable, not just claimed.
+2. **Validation Flywheel** — every applied recommendation gets measured **causally** (not just claimed) with a significance threshold (Δ≥2 pts AND n≥3 calls).
 
 Constraints:
 - Single sub-account scope per FSB
@@ -21,116 +21,184 @@ Constraints:
 ## 2. What shipped
 
 ### Backend
-- 9 route files, 21 endpoints
-- 6 services: Analysis, Narrative, Recommendation, PromptVersion, Ingestion, HLAuth
+- 10 route files, 25+ endpoints
+- 10 services: Analysis, Narrative, Recommendation, PromptVersion, Ingestion, HLAuth, HLVoiceAgent, ApplyRecommendation, EditSummary, PromptStructure, RecommendationValidator
 - 3 transcript providers (Mock, HighLevel, Base abstract)
-- 9 SQLite tables with WAL mode, additive-only migrations
-- OpenAI integration with `response_format: json_schema strict`
-- ~4,055 LOC
+- 10 SQLite tables with WAL mode, additive-only migrations
+- OpenAI integration with `response_format: json_schema strict` everywhere
+- Semantic dedup pass on every analysis (batched LLM call, graceful no-op without API key)
 
 ### Frontend
-- 7 page views, 25 components
+- 7 page views, 30+ components
 - Top-nav 4-tab IA (Overview / Flywheel / Patterns / Actions)
 - Pinia state, axios API client, Vue Router with lazy-loaded chunks
-- ~4,068 LOC
+- Flywheel page redesigned to 2-hero focus + collapsible drill-in (V4.4)
+- Patterns view split by per-agent applied/active state (V4.5)
+- Dark theme tokens audited for WCAG AA compliance (V4.5)
 
 ### Integration
 - Marketplace App OAuth flow (`/api/oauth/callback` + per-location token persistence + auto-refresh)
 - Dashboard embeds inside HL as a Custom Menu Link (full-width iframe)
 - PIT-token fallback for single-tenant developer use
+- V4 PATCH writes to HL Voice AI agents (`/voice-ai/agents/:id`)
 
 ### Documentation
-- README + 5 docs files (ARCHITECTURE, DATA_MODEL, API_SPEC, INTEGRATION, DEMO_SCRIPT, this file)
-- All written from current code state (this revision)
+- README + 8 docs files, all reflecting current state (V4.5)
 
 ---
 
 ## 3. Execution timeline
 
-The build proceeded in 4 phases over ~3 days. Each phase was scoped to leave the previous in working state.
-
 ### Phase 0 — Foundation (Day 1)
-- Express skeleton + SQLite schema (5 initial tables: agents, kpi_definitions, calls, analyses, agent_insights)
+- Express skeleton + SQLite schema (5 initial tables)
 - Vue 3 + Vite + Tailwind shell
 - Mock transcript provider with 4 realistic agents
 - Basic OpenAI analysis pipeline with structured output
 - Overview + Agent Detail + Call Detail pages
-- Custom JS widget skeleton (later removed in favor of OAuth + Custom Menu Link — 440px sidebar too narrow for the rich dashboard)
 
 ### Phase 1 — HighLevel live integration (Day 2 morning)
-- `HighLevelTranscriptProvider` calling `services.leadconnectorhq.com/voice-ai/*` endpoints
-- PIT-based auth flow
-- OAuth Marketplace flow with token persistence
+- `HighLevelTranscriptProvider` calling `services.leadconnectorhq.com/voice-ai/*`
+- OAuth Marketplace flow with token persistence + auto-refresh
 - Sync All button with progress indicator
-- Iframe-friendly headers (CSP + frame-ancestors)
+- Iframe-friendly headers
 
 ### Phase 2 — Validation Flywheel V1 (Day 2 afternoon)
-- `agent_prompt_versions` table + `PromptVersionService` with SHA-256 hashing
-- `recommendations` as first-class entity (table + `RecommendationService`)
-- Lifecycle: `active → applied → measured` with causal before/after
-- Auto-apply detection on prompt change
-- Initial `/api/agents/:id/flywheel` endpoint with structured stage data
-- `AgentFlywheelPanel` (vertical) on Agent Detail
+- `agent_prompt_versions` table + `PromptVersionService` (SHA-256 hashing)
+- `recommendations` as first-class entity with lifecycle (`active → applied → measured`)
+- Auto-apply detection on prompt change (`markActiveAsApplied`)
+- `computePendingOutcomes` — causal before/after measurement (≥1 call each side)
+- Initial `/api/agents/:id/flywheel` endpoint
 
-### Phase 3 — V3 redesign (Day 3) — the bulk of the recent work
+### Phase 3 — V3 redesign (Day 3)
+- 7th validator: hallucination detection
+- `NarrativeService` with deterministic what / why / evidence / action
+- `/api/flywheel/summary`, `/api/patterns`, `/api/actions` endpoints
+- `/flywheel`, `/patterns`, `/actions` pages
+- `MonitorAnalyzeHero`, `AgentHorizontalFlywheel`, `KpiEditor` components
+- 4-tab top nav IA
 
-Sub-phase 3.1 — Backend foundation (~1.75 h)
-1. Hallucination detection (7th validator) — schema + OpenAI field + storage column
-2. `NarrativeService` with deterministic what / why / evidence / action per stage
-3. `GET /api/flywheel/summary` — agency-wide funnel + 5 narratives + impact
-4. `GET /api/patterns` — clustered recommendations across agents
-5. `use_action_statuses` table + `GET /api/actions` + `POST /:verb` (resolve/dismiss/escalate)
+### Phase 4 — V4: Close the Apply loop (Day 4)
+- `HLVoiceAgentService` → PATCH `/voice-ai/agents/:id`
+- `ApplyRecommendationService` orchestrator (idempotency, snapshot, PATCH, mark applied, audit log)
+- `ApplyDiffModal.vue` (editable diff, 5 live debounced validators)
+- `apply_attempts` table + receipt panel + one-click rollback
+- 27/27 regression assertions against live HL sandbox
 
-Sub-phase 3.2 — New pages (~3.25 h)
-1. `ValidationFunnel.vue` (6 bars + conversion %)
-2. `FlywheelStageCard.vue` (click-to-expand narrative)
-3. `/flywheel` page (funnel + 5 cards + impact summary)
-4. `MonitorAnalyzeHero.vue` (4-step strip with WHY line)
-5. `PatternsView.vue` + `PatternCard.vue` (cluster cards w/ lifecycle bars)
-6. `ActionsView.vue` (queue with optimistic verb buttons)
+### Phase 4.1 — Pattern metrics (V4.1)
+- `recommendation_calls` join table (distinct-call math vs misleading occurrence_count)
+- `callsAffected` + `failedCallsAffected` on every pattern
+- `urgencyDescriptor` (one-off / recurring / systemic)
+- "Detected in N calls · M failed · last 4h ago · recurring" header
 
-Sub-phase 3.3 — Integration (~1.25 h)
-1. Hallucination flags on Call Detail transcript (rings + chip + popover + timeline)
-2. `AgentHorizontalFlywheel.vue` + `GET /api/agents/:id/flywheel/narrative` + `NarrativeService.buildForAgent()`
-3. `KpiEditor.vue` + `PUT /api/agents/:id/kpis` with weight-sum=1.0 validation
+### Phase 4.2 — Section-aware insertion + context validators (V4.2)
+- `PromptStructureService` — LLM parses prompt into named sections, cached in `agent_prompt_structure` (10th table)
+- `proposeInsertion` — LLM picks WHICH section the fix belongs in + produces modified section verbatim; backend splices into full prompt
+- `RecommendationValidatorService` extended with 2 new validators:
+  - `context_consistency` — full-prompt LLM check for contradictions / tone drift / scope creep / sequencing / redundancy / variable mismatch; surfaces conflicting phrases with quotes
+  - `section_fit` — confirms target section exists
+- 14/14 V4.2 regression assertions (3 scenarios: contradiction → block, tone-drift → warn, clean merge → pass + section-aware insertion picks `script` section)
 
-Sub-phase 3.4 — Switch over (~45 min)
-1. Overview cleanup — added MonitorAnalyzeHero + FlywheelSnapshotTile, removed FlywheelDiagram + LoopClosingWidget
-2. Top nav — 4 tabs in Topbar with active-state styling
-3. Final QA — all routes 200, lint clean, build clean
+### Phase 4.3 — Apply→Measurement chain fix (CRITICAL)
 
-### Phase 4 — Bug fixes + documentation refresh (current)
-- Fixed broken Apply / Measure action links (Apply now deep-links to top recently-changed agent; Measure links to `/patterns?status=applied`)
-- Made PatternsView URL-aware (initialise from `?status=` and `?minAgents=`, sync URL on filter change)
-- Wiped 9 stale doc files + `revamped.txt`
-- Wrote 6 fresh docs (this one + ARCHITECTURE + DATA_MODEL + API_SPEC + INTEGRATION + DEMO_SCRIPT + README)
+**The bug**: V4's `ApplyRecommendationService` marked recommendations `status='applied'` and PATCHed HighLevel with the new prompt — but **never recorded a new `agent_prompt_versions` row** and **never set `applied_prompt_version_id` on the rec**. Result: `computePendingOutcomes` could never match calls to recs → no outcome was ever computed → "Outcomes Measured" stuck at 0 forever. Silently broken since V4 shipped.
+
+**Discovery**: PM-style audit walking the data from DB up to UI. Found 3 applied recs all with `applied_prompt_version_id = NULL`. Traced through the apply path: PATCH succeeded, mark-applied succeeded, but no version recording step existed.
+
+**Fix** in `ApplyRecommendationService.apply()`:
+```js
+// After PATCH succeeds, before mark-applied:
+const promptVersionResult = PromptVersionService.recordIfChanged({
+  id: agentId, name: agent.name, script: finalText, goal: agent.goal,
+})
+// Then mark-applied also writes the version ID:
+UPDATE recommendations SET ..., applied_prompt_version_id=?, ...
+```
+
+**Backfill**: existing stuck recs got `applied_prompt_version_id` set via best-guess heuristic (dominant prompt_version_id of post-apply calls for that agent, or latest version as fallback).
+
+**Verification**: end-to-end live HL test — applied a fresh recommendation, injected a synthetic post-apply call, watched `outcome_computed_at` populate with a real Δ. Flywheel "Outcomes Measured" ticked from 0 to 1 as expected.
+
+### Phase 4.4 — Flywheel correctness + redesign
+
+**Math correctness**:
+- All funnel counts windowed consistently (was mixing `WHERE first_seen_at >= ?` with all-time aggregates → 187% conversion rates)
+- `?mode=window|all-time` toggle (default `window`)
+- "Root Causes Identified" demoted from funnel row to side stat (different unit of count — calls vs. recommendations)
+- Significance threshold for "Improved Scores": `delta >= 2 pts AND after_sample_size >= 3`
+- "any improvement" exposed as a sub-count under "Improved Scores" (transparency, not data hiding)
+- Success rate computed over ALL measured (was `LIMIT 5` → misleading "60%" was really "3 of last 5")
+- Fixed bug in `NarrativeService._buildMeasure`: `allMeasured` query was missing `after_sample_size` column → significance filter always returned 0 → "0 significantly" was wrong in every dashboard
+
+**Framing correctness — leak vs waiting**:
+- 0% conversion at "Outcomes Measured" was being labeled "biggest leak" → misleading; the user can't FORCE measurement, it requires post-apply calls to accumulate
+- New `status` field on each funnel row: `'leak' | 'waiting' | 'normal' | 'na'`
+- "Waiting" = 0% conversion AND prior step happened within grace window (3 days for Measured, 3 days for Improved)
+- `biggestLeak` only flags `status === 'leak'` rows; `waitingStage` surfaced separately
+- Next-action logic respects waiting state ("Waiting for outcomes measured to accumulate" instead of "Apply more")
+- Health summary: stages in `waiting` count as healthy
+
+**Impact metrics replaced**:
+- "Manual Review Hours Saved" (fake `analyses × 5min` coefficient) → `avgDaysIssueToFix` (real cycle time: `AVG(applied_at - first_seen_at)`)
+- `passRatePct` surfaced as primary impact stat
+- All Impact cards now show "vs prior 7d" / "cumulative" context labels
+
+**UI redesign — 2-hero focus**:
+- Hero 1: huge metric (48px) + one-line lifecycle sentence (`23 issues → 43 generated → 2 applied → 0 measured → 0 improved`) with leak step highlighted in red
+- Hero 2: bordered, tinted "next best action" callout with deep-link CTA button
+- Funnel + 5 stage cards + impact + closure rate → collapsed behind "▸ Drill in" toggle
+- Window/All-time mode toggle in filter bar
+- Page width `max-w-7xl` (was 5xl, cards were squished)
+- Responsive grid `sm:2 / lg:3 / xl:5` (was always 5)
+- Click affordance + caret hover animation on stage cards
+- "Produces funnel rows: X, Y" labels on each stage card (links operational stage to outcome metric)
+
+### Phase 4.5 — Semantic dedup + Patterns rollup + Dark theme
+
+**Semantic dedup** in `RecommendationService.persistFromAnalysis`:
+- Two-pass design: cluster_key match (fast) → LLM batched dedup (only for misses)
+- One LLM call per analysis batches all proposed recs against the agent's existing active/applied set
+- LLM returns "this proposed title is a duplicate of cluster_key X" or empty for new behavior
+- Matched proposals reuse the existing cluster_key → treated as occurrence_count increment, not new row
+- Graceful no-op without `OPENAI_API_KEY` (logged warning, no failure)
+- Existing duplicates on live DB cleaned up via one-off script (LLM-based)
+- `persistFromAnalysis` is now `async`; `AnalysisService` + `backfillRecommendations.js` updated to `await`
+
+**Patterns API per-agent rollup**:
+- New SQL fields per cluster: `agentsApplied`, `agentsActive`, `agentsDismissed` (count distinct agents per status)
+- New `agentRollup.applyState`: `'all_applied' | 'partial' | 'not_started'`
+- New arrays: `agentsApplied[]`, `agentsStillActive[]`, `agentsDismissed[]` (split detail rows by status)
+- Two-phase query: status filter chooses which CLUSTERS to include; per-agent rollup computed from FULL data (filter doesn't break "Applied 1 of 2" math when filter=active)
+
+**PatternCard UI**:
+- New header pill showing apply state: `✓ Applied to all 2` / `Applied 1/2 · 1 still needed` / `Not yet applied (3 agents)`
+- Expanded view split into 2 sections:
+  - `⚠ STILL NEEDS APPLY ON N AGENT(S)` (red left-border, with [Apply] buttons)
+  - `✓ ALREADY APPLIED ON N AGENT(S)` (green left-border, read-only)
+- Cross-agent patterns no longer look like "duplicates" of applied recs
+
+**Dark theme readability (WCAG AA tokens)**:
+- `text-muted` lifted from `#6B7493` (3.0–4.1:1 vs all bg surfaces — FAILED AA) → `#8B95B8` (4.7–6.4:1 — PASSES AA)
+- `border-subtle` `#222B49` → `#2A335A` (cards now have visible edges)
+- `border-strong` `#2D3858` → `#3A4670`
+- New text-variant tokens for accent colors on cards:
+  - `accent-primary-text` `#60A5FA` (7.0:1) — for blue text on cards (solid buttons keep `#3B82F6`)
+  - `accent-secondary-text` `#A78BFA` (6.5:1)
+  - `fail-text` `#F87171` (6.4:1) — for red text inside cards (solid badges keep `#EF4444`)
+- 139+ existing `text-muted` usage sites auto-fixed; ~5 targeted swaps for bare accent-text on cards
 
 ---
 
 ## 4. Decisions made along the way
-
-### Cut from V3 scope
-
-| Item | Why cut |
-|---|---|
-| OpenAI on-demand "explain why" button | Deterministic narratives already cover the need; OpenAI cost without grade lift |
-| AI auto-suggested per-agent KPIs | Manual override delivers same value at 10× less risk |
-| `validation_runs` audit log | Not graded; observability beyond demo scope |
-| `expected_impact_pct` predictions | Cool but adds OpenAI complexity; measured impact is the real differentiator |
-| Multi-validator architecture split | Single OpenAI call works; splitting = 6× cost |
-| Embedding-based pattern clustering | Title-based `cluster_key` works at current scale |
-| A/B testing for prompts | V4 product feature |
-| Multi-sub-account agency rollups | FSB says single sub-account |
-| Executive reporting | Real product feature, not graded |
-| Real-time webhook ingestion | Endpoint exists; HL webhook wiring is one config change |
 
 ### Architectural calls that paid off
 
 - **Adapter pattern for providers** — switching `TRANSCRIPT_PROVIDER` between `mock` and `highlevel` is the only change needed
 - **Strict JSON schema** — zero JSON.parse defensive code; trust the OpenAI contract
 - **Deterministic narratives** — zero added OpenAI cost per dashboard load
-- **First-class recommendations** — enables Patterns clustering, causal measurement, and lifecycle UI
+- **First-class recommendations** — enables Patterns clustering, causal measurement, lifecycle UI
 - **SHA-256 prompt versioning** — closes the loop without requiring an "I applied this" button
+- **PM-style data audit** — walking the chain from DB → API → UI caught the silent V4.3 measurement bug
+- **Two-phase pattern query** — keeps status filter as INCLUSION rule while keeping per-agent rollup math correct
 
 ### Architectural calls that have a known trade-off
 
@@ -138,7 +206,8 @@ Sub-phase 3.4 — Switch over (~45 min)
 - **SQLite single-tenant** — does not scale to multi-sub-account; intentional FSB scope match
 - **Pull-only ingestion** — Sync All replaces push; webhook is one config away
 - **`X-API-Key` exposed in client SPA** — visible in browser source; tolerable for single-sub-account scope. Marketplace App's per-location OAuth tokens are the production answer
-- **Narrative bounded by SQL rules** — can't synthesise novel insights; future "explain in depth" OpenAI button planned
+- **Semantic dedup adds ~$0.001/analysis + ~1s latency** — accepted: prevents the duplicate-rec confusion that broke user trust in V4.4. Falls back to no-op without API key.
+- **Significance threshold is hard-coded (Δ≥2 AND n≥3)** — tuned for current demo scale; could be per-agent or learned in V5
 
 ---
 
@@ -146,11 +215,7 @@ Sub-phase 3.4 — Switch over (~45 min)
 
 In rough priority order by customer impact:
 
-### V4 — Close the apply loop (highest ROI) — **fully scoped in [`V4_PLAN.md`](V4_PLAN.md)**
-
-Direct one-click application of recommendations into the live HL agent via `PATCH /agent-studio/agent/versions/:versionId`. Replaces the only manual step in V3 (paste suggested text into HL Agent Studio). Effort: ~15 hours including a non-optional 2 h API discovery phase against the sandbox. See `V4_PLAN.md` for endpoint inventory, 7-phase build, failure modes, go/no-go criteria.
-
-### V4.5 — Real-time push
+### V5 — Real-time + alerts
 - Wire HL `call.completed` webhook to `POST /api/transcripts/ingest`
 - Server-sent events on `/api/events` for live dashboard updates
 - Slack/email alert configuration (per-agent KPI drop thresholds)
@@ -158,14 +223,13 @@ Direct one-click application of recommendations into the live HL agent via `PATC
 ### V5 — Production hardening
 - Postgres adapter behind same SQLite-shaped query layer (no rewrite needed)
 - Per-location data partitioning
-- OAuth token auto-refresh with retry queue
 - Rate limit handling for OpenAI bulk syncs
-- Cost dashboard (track OpenAI tokens spent per agent)
+- Cost dashboard (track OpenAI tokens spent per agent + per dedup pass)
 
 ### V5 — Pattern intelligence
-- Embedding-based clustering across agents (catches "ask for budget" + "qualify by spend" as same pattern)
-- "Apply this fix to N agents" bulk operation
-- Suggested KPI definitions per agent based on the agent's goal text (OpenAI)
+- Embedding-based clustering across agents (catches "ask for budget" + "qualify by spend" as same pattern without LLM cost)
+- "Apply this fix to N agents" bulk operation (now feasible with the agentRollup data)
+- Suggested KPI definitions per agent based on the agent's goal text
 - A/B testing — try new prompt on 10% of calls, compare averages
 
 ### V6 — Agency platform
@@ -176,21 +240,24 @@ Direct one-click application of recommendations into the live HL agent via `PATC
 
 ---
 
-## 6. Acceptance criteria — V3 (current ship)
+## 6. Acceptance criteria — current ship (v4.5)
 
-All passing as of 2026-06-06:
+All passing as of 2026-06-09:
 
 - [x] Hard-refresh `/dashboard/` shows Monitor→Analyze hero block with live data
-- [x] Click `[♻️ Flywheel]` → loads funnel viz with 6 stages, real counts
-- [x] Click any stage card → expands with 4-line narrative (what/why/evidence/action)
-- [x] Click `[🔍 Patterns]` → loads pattern cards across all agents
-- [x] Click `[⚠️ Actions]` → loads action queue, [Resolve] button removes row optimistically
-- [x] Click any agent → Agent Detail shows horizontal flywheel with same narrative format
-- [x] Click any failing call → Call Detail shows transcript with hallucination flags (if any) + use action highlights
-- [x] Sync All works end-to-end and reflects in Funnel + Patterns within 5 seconds
+- [x] `[♻️ Flywheel]` loads 2-hero layout with honest "leak vs waiting" classification + correct math (windowed, significance-thresholded)
+- [x] Funnel "biggest leak" only flags real user-actionable bottlenecks (not natural data lag)
+- [x] `[🔍 Patterns]` shows per-pattern apply-state pill and splits expanded view into "Still needs / Already applied"
+- [x] `[⚠️ Actions]` queue + verb buttons work, `?turn=N` deep links scroll to flagged turn
+- [x] Agent Detail shows horizontal flywheel with same narrative format
+- [x] Call Detail shows transcript with hallucination flags (if any) + use action highlights
+- [x] V4 Apply: PATCH succeeds → new prompt_version recorded → `applied_prompt_version_id` set → next analysed call triggers `computePendingOutcomes` → outcome populates → dashboard reflects
+- [x] V4 Rollback: previous prompt restored in one click; rec returns to `status='active'`
+- [x] Semantic dedup catches "Capture Caller Details" ≈ "Capture Caller Information" before insert (verified on live data)
+- [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
-- [x] All routes return HTTP 200 (no dead links from new top nav)
-- [x] Apply / Measure action links resolve to real destinations (post-bug-fix)
+- [x] All routes return HTTP 200
+- [x] WCAG AA contrast on every text token against every surface (audited)
 
 ---
 
@@ -199,16 +266,17 @@ All passing as of 2026-06-06:
 | PDF requirement | Coverage | Where |
 |---|---|---|
 | Sandbox account from HL Marketplace | Documented | `INTEGRATION.md` |
-| Custom JS OR Marketplace App integration | Marketplace App OAuth + Custom Menu Link | `routes/oauth.js`, `HLAuthService`, dashboard added as Custom Menu Link in HL nav |
-| Ingest + analyze existing Voice AI transcripts | A | `IngestionService`, `AnalysisService`, `HighLevelTranscriptProvider` |
-| Observability params from agent's specific goals/script | A | `kpi_definitions` per agent, editable via `KpiEditor.vue` + `PUT /api/agents/:id/kpis` |
-| Identify deviations | A | OpenAI `deviations[]`, rendered as transcript rings + Flags Timeline |
-| Identify failures | A | `status: 'fail'` + recompute overall_score from KPIs × weights |
-| Identify missed opportunities | A | OpenAI `missedOpportunities[]`, rendered identically |
-| Intuitive dashboard across existing agents | A+ | Overview hero metrics + 4-tab IA + AgentStatusStrip |
-| Visualise performance issues | A+ | Status distributions, KPI radar, failure reasons, sentiment trend, /patterns clusters |
-| Immediate recommendations for prompt/script adjustments | A+ | First-class `recommendations` table with copy-paste `suggestedChange`, surfaced everywhere |
-| Highlight "Use Actions" | A+ | Dedicated `/actions` queue + per-turn transcript rings + verb buttons |
-| GitHub repo URL | ✅ shipped | https://github.com/UdayAppam/voice-ai-observability-copilot |
+| Custom JS OR Marketplace App integration | Marketplace App OAuth + Custom Menu Link | `routes/oauth.js`, `HLAuthService` |
+| Ingest + analyze existing Voice AI transcripts | ✅ | `IngestionService`, `AnalysisService`, `HighLevelTranscriptProvider` |
+| Observability params from agent's specific goals/script | ✅ | `kpi_definitions` per agent, editable via `KpiEditor.vue` |
+| Identify deviations | ✅ | OpenAI `deviations[]`, rendered as transcript rings + Flags Timeline |
+| Identify failures | ✅ | `status: 'fail'` + recompute overall_score from KPIs × weights |
+| Identify missed opportunities | ✅ | OpenAI `missedOpportunities[]` |
+| Intuitive dashboard across existing agents | ✅ | Overview hero + 4-tab IA |
+| Visualise performance issues | ✅ | Status distributions, KPI radar, failure reasons, sentiment trend, `/patterns`, 2-hero Flywheel |
+| Immediate recommendations for prompt/script adjustments | ✅ + V4 closes the loop with one-click apply | First-class `recommendations` table; V4 PATCHes HL agent directly |
+| Highlight "Use Actions" | ✅ | Dedicated `/actions` queue + per-turn transcript rings + verb buttons |
+| Validation Flywheel framing | ✅ + V4.3 fix proves causality | Funnel + 5 stages + measured outcomes + significance thresholds + leak/waiting classification |
+| GitHub repo URL | ✅ | https://github.com/UdayAppam/voice-agent-flywheel |
 | 2-5 min Loom demo | Script written, recording pending | `DEMO_SCRIPT.md` |
-| README + Team-of-One + functional/mocked | A | `README.md` |
+| README + Team-of-One + functional/mocked | ✅ | `README.md` |

@@ -1,6 +1,29 @@
 const crypto = require('crypto')
 const db = require('../db/database')
 const logger = require('../logger')
+const OpenAI = require('openai')
+
+// Lazy OpenAI client — only instantiated when semantic dedup runs.
+let _openai = null
+function _getOpenAI() {
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  return _openai
+}
+const DEDUP_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+
+// Schema for the batched dedup pass.
+const DEDUP_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['decisions'],
+  properties: {
+    decisions: { type: 'array', items: {
+      type: 'object', additionalProperties: false, required: ['proposedTitle', 'duplicateOfClusterKey'],
+      properties: {
+        proposedTitle: { type: 'string', description: 'verbatim title of the proposed recommendation' },
+        duplicateOfClusterKey: { type: 'string', description: 'cluster_key of the existing recommendation it duplicates, or empty string if not a duplicate' },
+      },
+    }},
+  },
+}
 
 // First-class lifecycle for AI-suggested fixes.
 // active → applied (auto-detected when prompt changes) → outcome measured
@@ -15,9 +38,15 @@ class RecommendationService {
 
   // Called after each analysis is stored. Extracts the recommendations array
   // and upserts each one against the agent's existing recommendation set.
+  //
+  // Two-pass dedup:
+  //   Pass 1 (fast): cluster_key match — catches identical/whitespace-normalized titles
+  //   Pass 2 (LLM): semantic match — catches "Capture Caller Details" ≈ "Capture Caller Information"
+  //                  Only invoked for recs that pass 1 didn't catch. One batched call per analysis.
+  //
   // V4.1: also records the (rec, call) link so we can count distinct calls
   // affected rather than analysis re-runs.
-  static persistFromAnalysis(agentId, callId, recommendations, currentPromptVersionId) {
+  static async persistFromAnalysis(agentId, callId, recommendations, currentPromptVersionId) {
     if (!recommendations || recommendations.length === 0) return { created: 0, updated: 0 }
 
     let created = 0
@@ -27,11 +56,38 @@ class RecommendationService {
       VALUES (?, ?, datetime('now'))
     `)
 
+    // ─── Pass 2 setup: pre-compute semantic dedup for recs that don't have a
+    // cluster_key match. We do ONE LLM call for the whole batch, then look up
+    // results inline below.
+    const pass1Misses = []
     for (const rec of recommendations) {
       const key = this.clusterKey(rec.title)
       const existing = db
+        .prepare('SELECT id FROM recommendations WHERE agent_id = ? AND cluster_key = ?')
+        .get(agentId, key)
+      if (!existing) pass1Misses.push(rec)
+    }
+    const semanticMap = pass1Misses.length > 0
+      ? await this._semanticDedup(agentId, pass1Misses)
+      : new Map()
+
+    for (const rec of recommendations) {
+      // Pass 1: cluster_key match. If miss → check Pass 2 semantic result.
+      let key = this.clusterKey(rec.title)
+      let existing = db
         .prepare('SELECT id, status, occurrence_count FROM recommendations WHERE agent_id = ? AND cluster_key = ?')
         .get(agentId, key)
+      if (!existing && semanticMap.has(rec.title)) {
+        // LLM matched this to an existing cluster_key — reuse it.
+        const matchedKey = semanticMap.get(rec.title)
+        const matched = db.prepare('SELECT id, status, occurrence_count FROM recommendations WHERE agent_id = ? AND cluster_key = ?')
+          .get(agentId, matchedKey)
+        if (matched) {
+          existing = matched
+          key = matchedKey
+          logger.info({ agentId, proposedTitle: rec.title, mergedInto: matchedKey }, 'recommendation: semantic dedup hit')
+        }
+      }
 
       let recId
       if (existing) {
@@ -89,6 +145,61 @@ class RecommendationService {
       if (callId) linkStmt.run(recId, callId)
     }
     return { created, updated }
+  }
+
+  // Semantic dedup — for each proposed rec that didn't match an existing
+  // cluster_key, ask the LLM whether it's semantically equivalent to any
+  // existing rec on the same agent. Returns Map<proposedTitle, existingClusterKey>.
+  // Skipped (no-op) if there are no existing recs to compare against, OR if the
+  // OPENAI_API_KEY isn't configured (graceful degradation).
+  static async _semanticDedup(agentId, proposedRecs) {
+    const result = new Map()
+    if (!process.env.OPENAI_API_KEY) return result
+
+    const existingRecs = db.prepare(`
+      SELECT cluster_key, title, suggested_change, status
+      FROM recommendations
+      WHERE agent_id = ? AND status IN ('active','applied')
+    `).all(agentId)
+    if (existingRecs.length === 0) return result
+
+    try {
+      const prompt =
+        `You are de-duplicating Voice AI agent prompt recommendations for a single agent.\n\n` +
+        `EXISTING recommendations already in the system (do NOT propose changes here):\n` +
+        existingRecs.map((r, i) =>
+          `E${i+1}. cluster_key="${r.cluster_key}" status=${r.status}\n` +
+          `     title: ${r.title}\n` +
+          (r.suggested_change ? `     → ${r.suggested_change.slice(0, 200)}\n` : '')
+        ).join('') + '\n' +
+        `PROPOSED new recommendations to dedupe:\n` +
+        proposedRecs.map((r, i) =>
+          `P${i+1}. title: ${r.title}\n` +
+          (r.suggestedChange ? `     → ${r.suggestedChange.slice(0, 200)}\n` : '')
+        ).join('') + '\n' +
+        `For each PROPOSED recommendation, determine if it is semantically equivalent to any EXISTING one — meaning applying both would be redundant. ` +
+        `Match conservatively: only mark a duplicate when the BEHAVIOR being added is the same (e.g. "Capture Caller Details" ≈ "Capture Caller Information" since both ask for name+phone). ` +
+        `Return duplicateOfClusterKey="" for proposed recs that are genuinely new behaviour.\n\n` +
+        `Return one decision per proposed recommendation, using the exact verbatim proposedTitle.`
+
+      const res = await _getOpenAI().chat.completions.create({
+        model: DEDUP_MODEL,
+        temperature: 0,
+        response_format: { type: 'json_schema', json_schema: {
+          name: 'semantic_dedup', strict: true, schema: DEDUP_SCHEMA,
+        }},
+        messages: [{ role: 'user', content: prompt }],
+      })
+      const { decisions } = JSON.parse(res.choices[0].message.content)
+      for (const d of decisions) {
+        if (d.duplicateOfClusterKey) result.set(d.proposedTitle, d.duplicateOfClusterKey)
+      }
+      logger.info({ agentId, proposed: proposedRecs.length, dedupedCount: result.size }, 'recommendation: semantic dedup pass complete')
+    } catch (err) {
+      // Never fail an analysis because of dedup; fall back to no-dedup behaviour.
+      logger.warn({ agentId, err: err.message }, 'recommendation: semantic dedup failed, proceeding without it')
+    }
+    return result
   }
 
   // Called when PromptVersionService.recordIfChanged returns isNew=true with

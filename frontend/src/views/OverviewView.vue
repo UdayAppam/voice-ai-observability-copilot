@@ -192,7 +192,7 @@
           </span>
           <RouterLink
             to="/"
-            class="ml-auto text-accent-primary hover:underline"
+            class="ml-auto text-accent-primary-text hover:underline"
           >
             Reset →
           </RouterLink>
