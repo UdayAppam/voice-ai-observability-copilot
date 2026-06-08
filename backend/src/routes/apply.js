@@ -7,6 +7,8 @@ const httpError = require('../utils/httpError')
 const ApplyRecommendationService = require('../services/ApplyRecommendationService')
 const RecommendationValidatorService = require('../services/RecommendationValidatorService')
 const HLVoiceAgentService = require('../services/HLVoiceAgentService')
+// V4.8 — factory picks LocalAgentService for `reg-*` demo agents, HL for the rest
+const { getAgentService } = require('../services/LocalAgentService')
 const PromptStructureService = require('../services/PromptStructureService')
 const db2 = require('../db/database')
 
@@ -19,19 +21,12 @@ router.get('/recommendations/:recId/preview-apply', async (req, res, next) => {
     const rec = db.prepare('SELECT * FROM recommendations WHERE id = ?').get(req.params.recId)
     if (!rec) return next(httpError('REC_NOT_FOUND', `Recommendation ${req.params.recId} not found`, 404))
 
-    // Detect synthetic test-DB recommendations (agent IDs prefixed `reg-` from the
-    // regression seed). Apply requires a real HL agent — short-circuit with a
-    // friendly UI-facing message instead of leaking the HL 403.
-    if (_isDemoAgent(rec.agent_id)) {
-      return next(httpError(
-        'DEMO_AGENT',
-        'This agent is a regression-test scenario and doesn\'t exist in HighLevel. Switch to LIVE mode (bash .runtime/use-data.sh live) to try Apply on a real HL Voice AI agent.',
-        409
-      ))
-    }
-
+    // V4.8 — adapter factory: `reg-*` demo agents use LocalAgentService (reads/writes
+    // local agents table); real HL agents continue to use HLVoiceAgentService.
+    // Same downstream pipeline (section-aware insertion, validators, splice, audit)
+    // works against either.
     const locationId = process.env.HL_LOCATION_ID
-    const hl = new HLVoiceAgentService({ locationId })
+    const hl = getAgentService(rec.agent_id, { locationId })
     const agent = await hl.getAgent(rec.agent_id)
 
     // V4.2: section-aware insertion. Parse the prompt into sections (cached),
@@ -129,12 +124,10 @@ router.post('/recommendations/:recId/validate', async (req, res, next) => {
     const rec = db.prepare('SELECT * FROM recommendations WHERE id = ?').get(req.params.recId)
     if (!rec) return next(httpError('REC_NOT_FOUND', `Recommendation ${req.params.recId} not found`, 404))
     if (!req.body?.proposedText) return next(httpError('INVALID_BODY', 'proposedText required', 400))
-    if (_isDemoAgent(rec.agent_id)) {
-      return next(httpError('DEMO_AGENT', 'Validate not available — this is a demo agent. Switch to LIVE mode.', 409))
-    }
 
+    // V4.8 — same adapter as preview-apply: reg-* demo agents go local, rest go HL
     const locationId = process.env.HL_LOCATION_ID
-    const hl = new HLVoiceAgentService({ locationId })
+    const hl = getAgentService(rec.agent_id, { locationId })
     const agent = await hl.getAgent(rec.agent_id)
     const validation = await RecommendationValidatorService.validate({
       agent, currentText: agent.agentPrompt, proposedText: req.body.proposedText,
@@ -149,13 +142,9 @@ router.post('/recommendations/:recId/validate', async (req, res, next) => {
 // The one-click action. Body: { finalText, userEmail }
 router.post('/agents/:agentId/recommendations/:recId/apply', async (req, res, next) => {
   try {
-    if (_isDemoAgent(req.params.agentId)) {
-      return next(httpError(
-        'DEMO_AGENT',
-        'Cannot apply — this is a regression-test agent that doesn\'t exist in HighLevel. Switch to LIVE mode to try Apply on a real HL Voice AI agent.',
-        409
-      ))
-    }
+    // V4.8 — no gate. ApplyRecommendationService picks LocalAgentService or
+    // HLVoiceAgentService based on the agentId prefix. Demo agents apply
+    // changes to the local agents table; real HL agents PATCH HighLevel.
     const locationId = process.env.HL_LOCATION_ID
     const receipt = await ApplyRecommendationService.apply({
       recommendationId: req.params.recId,
@@ -196,12 +185,9 @@ router.get('/recommendations/:recId/history', (req, res, next) => {
   }
 })
 
-// Regression-suite agents are seeded with IDs prefixed `reg-` (per scenarios.js).
-// Apply doesn't work on them because they aren't real HL agents — fail loudly
-// but kindly so test-mode users know what's going on.
-function _isDemoAgent(agentId) {
-  return typeof agentId === 'string' && agentId.startsWith('reg-')
-}
+// V4.8 — gone. `_isDemoAgent` previously blocked `reg-*` agents from the
+// apply pipeline. Now LocalAgentService handles them transparently via the
+// adapter factory. Live HL behaviour is unchanged.
 
 function _mergeSuggestion(currentPrompt, suggestion) {
   if (!suggestion) return currentPrompt

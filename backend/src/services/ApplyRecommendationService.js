@@ -19,6 +19,9 @@ const HLVoiceAgentService = require('./HLVoiceAgentService')
 const RecommendationValidatorService = require('./RecommendationValidatorService')
 const EditSummaryService = require('./EditSummaryService')
 const PromptVersionService = require('./PromptVersionService')
+// V4.8 — adapter factory: reg-* demo agents resolve to LocalAgentService;
+// real HL agents resolve to HLVoiceAgentService. Same orchestration either way.
+const { getAgentService } = require('./LocalAgentService')
 
 // Idempotency window: a second Apply for the same rec within 5 min returns the
 // existing receipt (handles double-clicks during the 2-5s orchestration).
@@ -54,7 +57,7 @@ class ApplyRecommendationService {
     }
 
     // ── 2. Fetch HL agent + validate ─────────────────────────────────
-    const hl = new HLVoiceAgentService({ locationId })
+    const hl = getAgentService(agentId, { locationId })
     const agent = await hl.getAgent(agentId)
     const currentText = agent.agentPrompt
     const validation = await RecommendationValidatorService.validate({
@@ -194,7 +197,7 @@ class ApplyRecommendationService {
       throw _err('NO_SNAPSHOT', 'No rollback snapshot available — cannot revert', 409)
     }
 
-    const hl = new HLVoiceAgentService({ locationId })
+    const hl = getAgentService(rec.agent_id, { locationId })
     const attemptId = crypto.randomUUID()
     const startedAt = new Date().toISOString()
 

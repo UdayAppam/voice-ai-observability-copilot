@@ -263,6 +263,8 @@ V4.2 adds 2 new validators that surface in `validation.checks`:
 
 **V4.7 note** — the apply endpoint still expects a single `finalText` (whole prompt). The frontend now defaults to a section-focused editor and **splices client-side** before posting. No API change; `proposedText` POSTed to `/apply` is always the full merged prompt regardless of which editor surface the user used.
 
+**V4.8 note** — `preview-apply`, `validate`, and `apply` now work for `reg-*` test-DB agents too. Backend uses `getAgentService(agentId)` adapter: `reg-*` agents → LocalAgentService (reads/writes local `agents.script` column); real HL agents → HLVoiceAgentService (PATCH to HighLevel). API contract is unchanged; the old `DEMO_AGENT 409` error is gone — apply on test DB now returns a normal success receipt.
+
 ### `POST /api/recommendations/:recId/validate`
 Live re-validation for the editable textarea (frontend debounces 300ms). Body: `{ proposedText }`. Returns `{ checks: [...], blocking: boolean }`.
 

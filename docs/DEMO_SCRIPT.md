@@ -105,7 +105,7 @@ Target: **4 minutes** (range 3:30 – 4:45).
 
 [Click one `call XXXXX ↗` link to demonstrate the turn-scroll]
 
-#### 3:50 — Credibility: this works on real HighLevel data (25s)
+#### 3:50 — Credibility: same pipeline against real HighLevel data (25s)
 [Switch to a second terminal]
 
 ```bash
@@ -114,7 +114,7 @@ bash .runtime/use-data.sh live
 
 [Refresh the dashboard browser tab]
 
-> "Everything you just saw was the test dataset — covers every customer pain point with comprehensive seeded scenarios. Now switch to live mode. Same UI. **Now it's pulling 9 real Voice AI agents from my HighLevel sandbox via OAuth, with real call transcripts, real KPI scoring.** Same pipeline, mock or production. The Apply button writes to the real HL agent via the Voice AI API."
+> "Everything you just saw — including the **Apply flow with the section-focused editor** — already ran end-to-end against the test dataset. The test DB uses a `LocalAgentService` adapter that mirrors HighLevel's interface, so the full V4 chain (snapshot → patch → version recording → mark applied → audit → measure) works offline. Now switch to live mode. Same UI. **Now it's pulling 9 real Voice AI agents from my HighLevel sandbox via OAuth, with real call transcripts, real KPI scoring.** Same pipeline — only difference is the Apply button now PATCHes the real HL Voice AI agent."
 
 ---
 

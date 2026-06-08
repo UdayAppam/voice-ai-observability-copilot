@@ -1,6 +1,6 @@
 # Architecture
 
-Reflects the system as shipped at `v4.7`. Last updated 2026-06-09.
+Reflects the system as shipped at `v4.8`. Last updated 2026-06-09.
 
 ---
 
@@ -42,7 +42,7 @@ Reflects the system as shipped at `v4.7`. Last updated 2026-06-09.
 │    /api/actions         → Use Action queue + verb POSTs                   │
 │    /api/oauth           → callback, install webhook, installations        │
 │                                                                            │
-│  Services (10):                                                           │
+│  Services (11):                                                           │
 │    AnalysisService                → OpenAI per-call analysis              │
 │    NarrativeService               → deterministic what/why/evidence/action│
 │    RecommendationService          → lifecycle, dedup (cluster + semantic),│
@@ -51,8 +51,11 @@ Reflects the system as shipped at `v4.7`. Last updated 2026-06-09.
 │    IngestionService               → pull, normalize, persist, link        │
 │    HLAuthService                  → OAuth token exchange + refresh        │
 │    HLVoiceAgentService            → PATCH /voice-ai/agents/:id (V4 apply) │
+│    LocalAgentService              → V4.8 mock of HL for reg-* demo agents │
+│                                     (reads/writes local agents table)    │
 │    ApplyRecommendationService     → orchestrate apply (snapshot, PATCH,   │
 │                                     record version, mark applied, audit) │
+│                                     via getAgentService() adapter factory │
 │    EditSummaryService             → "what the user changed" one-liner     │
 │    PromptStructureService         → V4.2 section-aware insertion          │
 │    RecommendationValidatorService → 7 validators (incl. context-          │
@@ -376,6 +379,23 @@ V4.6 made the section choice visible; V4.7 makes the section the **editing surfa
 - **Auto-fallback**: when `sectionAware.fallback` is non-null (LLM picked invalid section / section text mismatch) OR `targetSectionText` not found in `currentText`, the modal auto-opens in whole-prompt mode with a yellow notice explaining why.
 
 Why client-side splice and not backend? Three reasons: (1) backend validators run against the spliced full prompt anyway — no new validation needed; (2) keeps the apply API stable (`finalText` semantics unchanged); (3) the splice is O(1) and deterministic — `targetSectionText` is guaranteed verbatim in `currentText` by `PromptStructureService` (or `sectionEditAvailable` is false).
+
+### V4.8 — LocalAgentService adapter (test DB apply pipeline)
+
+The apply chain was designed against `HLVoiceAgentService` (real HL HTTP). `reg-*` demo agents in test DB don't exist in HighLevel, so the original implementation short-circuited with a friendly "switch to live" error. Everything *else* in the chain (PromptStructure, validators, lifecycle, prompt-version recording, measurement) was already DB-agnostic — only the HL HTTP layer needed mocking.
+
+`LocalAgentService` mirrors `HLVoiceAgentService`'s public interface 1:1 — same method names, same return shapes (`{ id, agentName, agentPrompt, goal }`) — but backs `getAgent` with a SQLite read against the local `agents` table and backs `updateAgent`/`updateAgentPrompt` with an `UPDATE agents SET script = ?, …`. Throws `LOCAL_AGENT_NOT_FOUND` on missing rows, mirroring HL's 404 shape.
+
+The adapter factory `getAgentService(agentId, { locationId })` lives at the bottom of `LocalAgentService.js`. It picks based solely on the `reg-` prefix:
+
+```
+agentId.startsWith('reg-')  →  new LocalAgentService()
+otherwise                   →  new HLVoiceAgentService({ locationId })
+```
+
+Called from 5 sites: `routes/apply.js` (preview-apply, validate, apply handler) and `ApplyRecommendationService.js` (apply orchestrator, rollback). Replaces both the `_isDemoAgent()` short-circuit AND the direct `new HLVoiceAgentService(...)` constructor calls. Live HL behaviour is unchanged — the factory returns the same instance the old code constructed manually.
+
+This is the adapter pattern paying dividends: the right architecture made this a ~150-LOC change instead of a refactor.
 
 ### V4.3 — The missing prompt_version link (critical bug fix)
 

@@ -1,7 +1,7 @@
 # Voice Agent Flywheel
 
 **Repo**: https://github.com/UdayAppam/voice-agent-flywheel
-**Stable tag**: `v4.7` (section-focused editor + word-level diff highlighting in Apply modal)
+**Stable tag**: `v4.8` (apply flow works against test DB via LocalAgentService adapter)
 
 An observability + improvement copilot for HighLevel Voice AI agents. Built for the FSB Q226 hiring assignment.
 
@@ -82,6 +82,7 @@ Monitor + Analyze are the FSB Core Functionality. The Validation Flywheel is the
 | **V4.2 — Context-consistency validator** | **Live** — separate LLM call compares modified vs original prompt for contradictions / tone drift / scope creep / sequencing / redundancy / variable mismatch; quotes conflicting phrases |
 | **V4.6 — Section structure visibility + manual override + focused diff** | **Live** — Apply modal now shows the full collapsible "all N sections in this agent's prompt" list with the AI-picked target highlighted; user can override the section via dropdown (silent re-fetch with `?targetSectionId=`); section-only before/after diff panel above the full-prompt diff. Backend `proposeInsertion` accepts `forcedSectionId` to skip selection and modify the chosen section instead. |
 | **V4.7 — Section-focused editor + word-level diff highlighting** | **Live** — Apply modal default editor surface is now the **section being modified** (not the whole 5000-char prompt). Editing happens against ~500-char focused textarea; on Apply the section is spliced back into the original prompt. Word-level diff highlighting (green for added, red strikethrough for removed) shown in the section-only preview AND in the full-prompt expand view. "⤢ Edit whole prompt instead" toggle for power users. Falls back to whole-prompt editor automatically when section-aware path can't apply. Uses `diff` (Myers algorithm). |
+| **V4.8 — Apply flow works against test DB (LocalAgentService adapter)** | **Live** — `reg-*` demo agents (test DB regression scenarios) now route through `LocalAgentService` which reads/writes the local `agents` table instead of PATCHing HighLevel. Same orchestration chain (snapshot → "PATCH" → record version → mark applied → audit) runs end-to-end. Section parsing, validators, prompt-version recording, and downstream measurement all work. Live HL behavior unchanged — adapter factory in `getAgentService(agentId)` picks the right backend by prefix. Result: full V4 demo flow now reproducible offline against test DB. |
 | **V4.3 — Apply→Measurement chain fix (critical bug fix)** | **Live + verified** — `ApplyRecommendationService` now records new `prompt_version` and sets `applied_prompt_version_id` so `computePendingOutcomes` can match calls to recs. Was silently broken; never measured anything. Proven end-to-end against live HL data. |
 | **V4.4 — Flywheel correctness (math + framing)** | **Live** — window-scoped all funnel queries, significance threshold (Δ≥2 AND n≥3), leak-vs-waiting classification, "vs prior 7d" anchors, real `avgDaysIssueToFix` replaces fake "manual review hours saved" |
 | **V4.4 — Flywheel UI redesign (2-hero focus)** | **Live** — hero metric + one-line lifecycle sentence + dominant "next best action" callout + collapsible drill-in for funnel/cards |
@@ -244,5 +245,6 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | V4.3 measurement chain | Verified end-to-end on live HL data |
 | V4.6 section override | Verified end-to-end (force `persona` → LLM modifies Persona instead of `Information Gathering`) |
 | V4.7 section-focused editor | Builds clean; section-edit splices into full prompt before apply; auto-falls back to whole-prompt editor on section-mismatch |
+| V4.8 apply on test DB | Verified end-to-end on `reg-grace`: preview-apply OK, all 7 validators pass, apply succeeds with `record_prompt_version` step in timeline, agent.script updated locally, new `agent_prompt_versions` row written |
 | All SPA routes | HTTP 200 |
 | All API endpoints | HTTP 200 |

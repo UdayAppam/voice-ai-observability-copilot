@@ -1,6 +1,6 @@
 # Implementation Plan
 
-What was built, in what order, and what comes next. Reflects the system as of 2026-06-09 (`v4.7`).
+What was built, in what order, and what comes next. Reflects the system as of 2026-06-09 (`v4.8`).
 
 ---
 
@@ -254,6 +254,42 @@ Senior-PM critique of V4.6: the section-aware logic was visible via info panels 
 - Splice math: `currentText.indexOf(targetSectionText) + editedSectionText` symmetric with `aiSuggestedText` when user hasn't edited (validated by inspection).
 - Fallback path: when `sectionAware.fallback` is non-null OR `targetSectionText` not in `currentText`, auto-switches to whole-prompt editor.
 
+### Phase 4.8 — Apply flow works against test DB (LocalAgentService adapter)
+
+Previously the apply pipeline short-circuited for `reg-*` demo agents with a friendly "switch to LIVE mode" error. The rest of the chain (PromptStructure parsing, validators, lifecycle, prompt-version recording, measurement) was already DB-agnostic — only the HL HTTP layer needed mocking.
+
+**New service: `LocalAgentService.js`**
+- Mirrors `HLVoiceAgentService` interface 1:1: `getAgent(id)`, `updateAgent(id, patchBody)`, `updateAgentPrompt(id, text)`.
+- `getAgent` reads `agents.{id, name, script, goal}` and normalises to HL shape (`{ id, agentName, agentPrompt, goal }`).
+- `updateAgent` accepts the same `{ agentPrompt, agentName, goal }` patchBody shape and writes via `UPDATE agents SET ...`.
+- Throws `LOCAL_AGENT_NOT_FOUND` (status 404) on missing rows — matches HL's error shape.
+
+**Adapter factory: `getAgentService(agentId, { locationId })`**
+- `agentId.startsWith('reg-')` → returns `new LocalAgentService()`
+- otherwise → returns `new HLVoiceAgentService({ locationId })`
+- Lazy-requires HLVoiceAgentService to avoid circular dep with HLAuth.
+- Single source of truth for the routing decision.
+
+**Wired into**:
+- `routes/apply.js` — 3 sites (`preview-apply`, `validate`, `apply` route handler) now use `getAgentService(rec.agent_id, { locationId })`. The 3 `_isDemoAgent()` short-circuits removed; helper deleted.
+- `ApplyRecommendationService.js` — both `apply()` (line ~60) and `rollback()` (line ~200) now use the factory. Rollback uses `rec.agent_id` since it doesn't receive `agentId` as a method param.
+
+**Verification end-to-end on test DB**:
+- Switched to test DB, found active rec on `reg-grace` (Grace — Legal Intake).
+- `GET /preview-apply` → returns successfully (was 409 DEMO_AGENT before): 486-char current prompt, 522-char AI-suggested, all 7 validators pass, sectionAware parsed 2 sections, target = Script/Steps.
+- `POST /apply` with the AI-suggested text → returns `outcome: success` with full timeline including `snapshot`, `patch [status=200, newLen=522]`, `record_prompt_version [newVersionId=96c94365]`, `mark_applied`, `edit_summary`, `log_audit`.
+- DB state after: rec `status=applied`, `applied_via=auto_api`, `applied_prompt_version_id=96c94365`. New row in `agent_prompt_versions`. `agents.script` length updated from 486 to 522.
+
+**What this unlocks**:
+- Full demo of V4 apply flow works against test DB without HL connectivity. The "switch to LIVE mode" moment in `DEMO_SCRIPT.md` is now optional, not required.
+- Section editor (V4.7) + word-level diff (V4.7) + section override (V4.6) all visible against test data.
+- Regression suite could add direct V4 apply assertions without burning HL quota.
+
+**What's still LIVE-only by design**:
+- The actual HL Voice AI PATCH (verified at the production boundary).
+- OAuth installations + token refresh.
+- Real call ingestion from HL `/voice-ai/dashboard/call-logs`.
+
 ---
 
 ## 4. Decisions made along the way
@@ -308,7 +344,7 @@ In rough priority order by customer impact:
 
 ---
 
-## 6. Acceptance criteria — current ship (v4.7)
+## 6. Acceptance criteria — current ship (v4.8)
 
 All passing as of 2026-06-09:
 
@@ -324,6 +360,7 @@ All passing as of 2026-06-09:
 - [x] Semantic dedup catches "Capture Caller Details" ≈ "Capture Caller Information" before insert (verified on live data)
 - [x] Apply modal shows the full section list with the AI-picked target highlighted; user can override the section via dropdown; section-only before/after diff renders above the full-prompt diff
 - [x] Apply modal opens with section-focused editor (just the target section) by default; user edits ~500 chars instead of ~5000; whole-prompt edit available via toggle; word-level diff highlights (green=added) make AI's change visually scannable in both views
+- [x] Apply chain (preview → validate → apply → rollback) works end-to-end against test DB `reg-*` agents via `LocalAgentService`; same orchestration as live but writes to local `agents` table instead of PATCHing HL
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200
