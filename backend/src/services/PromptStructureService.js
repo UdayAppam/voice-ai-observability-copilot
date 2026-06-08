@@ -128,14 +128,63 @@ class PromptStructureService {
   // snippet belongs + produces the modified section text. The caller then
   // splices the modified section back into the full prompt via mergeInsertion.
   //
-  // Cached on (promptText + suggestion) so the modal can re-open without
-  // re-paying.
+  // `forcedSectionId` (optional) — bypasses the LLM's section selection. When
+  // provided the LLM only produces modifiedSectionText for that specific section.
+  // Used by the UI to support manual section override (B).
+  //
+  // Cached on (promptText + suggestion + forcedSectionId) so the modal can
+  // re-open without re-paying — and so the override produces a stable cache miss
+  // for each chosen section.
   static _insertionCache = new Map()  // key → { proposal, mergedPrompt }
-  static async proposeInsertion({ currentPrompt, sections, suggestion, agentName, agentGoal }) {
+  static async proposeInsertion({ currentPrompt, sections, suggestion, agentName, agentGoal, forcedSectionId = null }) {
     const cacheKey = crypto.createHash('sha256')
-      .update(currentPrompt + '::' + suggestion).digest('hex').slice(0, 24)
+      .update(currentPrompt + '::' + suggestion + '::' + (forcedSectionId || '')).digest('hex').slice(0, 24)
     const cached = this._insertionCache.get(cacheKey)
     if (cached) return cached
+
+    // When the section is forced, validate it actually exists in the parsed
+    // sections list before paying for an LLM call.
+    const forcedSection = forcedSectionId
+      ? sections.find((s) => s.id === forcedSectionId)
+      : null
+    if (forcedSectionId && !forcedSection) {
+      logger.warn({ forcedSectionId, available: sections.map((s) => s.id) },
+        'PromptStructure: forcedSectionId not found in parsed sections, falling back to LLM choice')
+    }
+
+    const systemMsg = forcedSection
+      ? `You are improving a Voice AI agent's prompt. The user has chosen to add ` +
+        `the improvement to a SPECIFIC section. Do NOT pick a different section — ` +
+        `target the one given. Produce the FULL text of that section after the ` +
+        `change is applied. Maintain the section's existing tone + formatting. ` +
+        `Return targetSectionId = "${forcedSection.id}" exactly.`
+      : `You are improving a Voice AI agent's prompt. Given the existing sections ` +
+        `and a short improvement suggestion, pick the ONE section the suggestion ` +
+        `most naturally modifies, then produce that section's full text after the ` +
+        `change is applied. Prefer inserting near the relevant existing instruction, ` +
+        `not appending blindly to the section's end. ` +
+        `Maintain the section's existing tone + formatting (numbered lists, bullets, ` +
+        `etc). Do NOT introduce contradictions with other sections — if the ` +
+        `suggestion can't be cleanly integrated, pick the closest fit and note it ` +
+        `in reasoning. ` +
+        `\n\nIMPORTANT: targetSectionId MUST be one of the section id strings exactly ` +
+        `as written (e.g. "persona", "qualification_script"). Do NOT return numeric ` +
+        `indexes or paraphrased names.`
+
+    const userMsg = forcedSection
+      ? `AGENT: ${agentName || '(unnamed)'}\nGOAL: ${agentGoal || '(none)'}\n\n` +
+        `TARGET SECTION (user-chosen, do not change):\n` +
+        `  id: ${forcedSection.id}\n  name: ${forcedSection.name}\n  purpose: ${forcedSection.summary}\n` +
+        `  text (${forcedSection.text.length} chars):\n${forcedSection.text.split('\n').map((l) => '  ' + l).join('\n')}\n\n` +
+        `IMPROVEMENT SUGGESTION (${suggestion.length} chars):\n${suggestion}\n\n` +
+        `Produce modifiedSectionText for this section.`
+      : `AGENT: ${agentName || '(unnamed)'}\nGOAL: ${agentGoal || '(none)'}\n\n` +
+        `AVAILABLE SECTION IDs (use one of these exactly for targetSectionId):\n` +
+        sections.map((s) => `  • ${s.id}`).join('\n') + '\n\n' +
+        `SECTION DETAILS:\n` +
+        sections.map((s) => `─── id: ${s.id}\n    name: ${s.name}\n    purpose: ${s.summary}\n    text (${s.text.length} chars):\n${s.text.split('\n').map((l) => '    ' + l).join('\n')}`).join('\n\n') + '\n\n' +
+        `IMPROVEMENT SUGGESTION (${suggestion.length} chars):\n${suggestion}\n\n` +
+        `Pick the best targetSectionId from the list above and produce modifiedSectionText.`
 
     const res = await openai.chat.completions.create({
       model: MODEL,
@@ -145,31 +194,12 @@ class PromptStructureService {
         json_schema: { name: 'propose_insertion', strict: true, schema: INSERTION_SCHEMA },
       },
       messages: [
-        { role: 'system', content:
-          `You are improving a Voice AI agent's prompt. Given the existing sections ` +
-          `and a short improvement suggestion, pick the ONE section the suggestion ` +
-          `most naturally modifies, then produce that section's full text after the ` +
-          `change is applied. Prefer inserting near the relevant existing instruction, ` +
-          `not appending blindly to the section's end. ` +
-          `Maintain the section's existing tone + formatting (numbered lists, bullets, ` +
-          `etc). Do NOT introduce contradictions with other sections — if the ` +
-          `suggestion can't be cleanly integrated, pick the closest fit and note it ` +
-          `in reasoning. ` +
-          `\n\nIMPORTANT: targetSectionId MUST be one of the section id strings exactly ` +
-          `as written (e.g. "persona", "qualification_script"). Do NOT return numeric ` +
-          `indexes or paraphrased names.` },
-        { role: 'user', content:
-          `AGENT: ${agentName || '(unnamed)'}\n` +
-          `GOAL: ${agentGoal || '(none)'}\n\n` +
-          `AVAILABLE SECTION IDs (use one of these exactly for targetSectionId):\n` +
-          sections.map((s) => `  • ${s.id}`).join('\n') + '\n\n' +
-          `SECTION DETAILS:\n` +
-          sections.map((s) => `─── id: ${s.id}\n    name: ${s.name}\n    purpose: ${s.summary}\n    text (${s.text.length} chars):\n${s.text.split('\n').map((l) => '    ' + l).join('\n')}`).join('\n\n') + '\n\n' +
-          `IMPROVEMENT SUGGESTION (${suggestion.length} chars):\n${suggestion}\n\n` +
-          `Pick the best targetSectionId from the list above and produce modifiedSectionText.` },
+        { role: 'system', content: systemMsg },
+        { role: 'user',   content: userMsg },
       ],
     })
     const proposal = JSON.parse(res.choices[0].message.content)
+    if (forcedSection) proposal.userForcedSection = true
 
     // Splice the modified section back into the full prompt
     const target = sections.find((s) => s.id === proposal.targetSectionId)

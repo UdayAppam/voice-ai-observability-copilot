@@ -38,6 +38,10 @@ router.get('/recommendations/:recId/preview-apply', async (req, res, next) => {
     // then ask the LLM where the suggestion belongs + produce the modified
     // section verbatim. Splice it back into the full prompt. If anything fails,
     // fall back to V4's blind-append behavior so the modal still renders.
+    //
+    // ?targetSectionId=<id>  (V4.6) — user-chosen section override. Skips the
+    // LLM's section selection and forces the modification onto the chosen one.
+    const userChosenSectionId = req.query.targetSectionId || null
     let aiSuggestedText
     let sections = null
     let insertionProposal = null
@@ -55,6 +59,7 @@ router.get('/recommendations/:recId/preview-apply', async (req, res, next) => {
         suggestion: rec.suggested_change || '',
         agentName: agent.agentName,
         agentGoal: agent.goal,
+        forcedSectionId: userChosenSectionId,
       })
       aiSuggestedText = insertion.mergedPrompt
       insertionProposal = insertion.proposal
@@ -97,7 +102,9 @@ router.get('/recommendations/:recId/preview-apply', async (req, res, next) => {
         reasoning:         insertionProposal.reasoning,
         confidence:        insertionProposal.confidence,
         fallback:          insertionProposal._fallback || null,
-        sections:          sections?.map((s) => ({ id: s.id, name: s.name, summary: s.summary })),
+        userForcedSection: insertionProposal.userForcedSection || false,
+        // Now includes text length per section so the UI can show "Persona (320 chars)"
+        sections:          sections?.map((s) => ({ id: s.id, name: s.name, summary: s.summary, textLength: s.text?.length || 0 })),
       } : null,
     })
   } catch (err) {

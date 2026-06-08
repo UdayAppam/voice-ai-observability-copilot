@@ -228,6 +228,10 @@ Flattens every Use Action across every analysis, overlaid with current lifecycle
 
 ### `GET /api/recommendations/:recId/preview-apply`
 Initial diff-modal load. Returns current HL prompt, AI-suggested merged prompt, initial validator results, and (V4.2) section-aware insertion metadata.
+
+**Query params (V4.6)**:
+- `targetSectionId=<id>` (optional) — force the LLM to modify a specific section instead of letting it choose. Must be a valid `id` from `sectionAware.sections[].id`. When set, the response includes `sectionAware.userForcedSection: true`.
+
 ```json
 {
   "recommendation": { "id": "...", "title": "...", "severity": "critical", "suggestedChange": "..." },
@@ -240,11 +244,15 @@ Initial diff-modal load. Returns current HL prompt, AI-suggested merged prompt, 
     "targetSectionName":  "Budget Question",
     "targetSectionText":  "...verbatim original section text...",
     "modifiedSectionText":"...section text after change...",
-    "insertionMode":      "replace_section",   // or append_to_section / prepend_to_section / insert_after_first_paragraph
+    "insertionMode":      "replace_section",   // append_to_section | prepend_to_section | replace_section | insert_after_first_paragraph
     "reasoning":          "The suggestion directly modifies the budget question...",
     "confidence":         "high",              // high|medium|low
     "fallback":           null,                // or 'unknown-section' / 'section-text-mismatch'
-    "sections":           [{ "id": "persona", "name": "Persona", "summary": "..." }, ...]
+    "userForcedSection":  false,               // V4.6 — true when ?targetSectionId was honored
+    "sections":           [
+      { "id": "persona", "name": "Persona", "summary": "...", "textLength": 816 },  // V4.6 added textLength
+      ...
+    ]
   }
 }
 ```

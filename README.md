@@ -1,7 +1,7 @@
 # Voice Agent Flywheel
 
 **Repo**: https://github.com/UdayAppam/voice-agent-flywheel
-**Stable tag**: `v4.5` (semantic dedup + per-agent rollup + PM-grade flywheel correctness)
+**Stable tag**: `v4.6` (section override + full structure visibility in Apply modal)
 
 An observability + improvement copilot for HighLevel Voice AI agents. Built for the FSB Q226 hiring assignment.
 
@@ -80,6 +80,7 @@ Monitor + Analyze are the FSB Core Functionality. The Validation Flywheel is the
 | **V4.1 — Pattern metrics: "Detected in N calls · M failed · last 4h ago · recurring"** | **Live** — distinct-call math via `recommendation_calls` join |
 | **V4.2 — Section-aware prompt insertion** | **Live** — LLM parses prompt into named sections (cached in `agent_prompt_structure`), picks WHICH section the fix belongs in instead of blindly appending |
 | **V4.2 — Context-consistency validator** | **Live** — separate LLM call compares modified vs original prompt for contradictions / tone drift / scope creep / sequencing / redundancy / variable mismatch; quotes conflicting phrases |
+| **V4.6 — Section structure visibility + manual override + focused diff** | **Live** — Apply modal now shows the full collapsible "all N sections in this agent's prompt" list with the AI-picked target highlighted; user can override the section via dropdown (silent re-fetch with `?targetSectionId=`); section-only before/after diff panel above the full-prompt diff. Backend `proposeInsertion` accepts `forcedSectionId` to skip selection and modify the chosen section instead. |
 | **V4.3 — Apply→Measurement chain fix (critical bug fix)** | **Live + verified** — `ApplyRecommendationService` now records new `prompt_version` and sets `applied_prompt_version_id` so `computePendingOutcomes` can match calls to recs. Was silently broken; never measured anything. Proven end-to-end against live HL data. |
 | **V4.4 — Flywheel correctness (math + framing)** | **Live** — window-scoped all funnel queries, significance threshold (Δ≥2 AND n≥3), leak-vs-waiting classification, "vs prior 7d" anchors, real `avgDaysIssueToFix` replaces fake "manual review hours saved" |
 | **V4.4 — Flywheel UI redesign (2-hero focus)** | **Live** — hero metric + one-line lifecycle sentence + dominant "next best action" callout + collapsible drill-in for funnel/cards |
@@ -240,5 +241,6 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | V4 apply regression | 27/27 assertions ✓ (live HL sandbox) |
 | V4.2 validator regression | 14/14 assertions ✓ (contradiction + tone drift + clean merge) |
 | V4.3 measurement chain | Verified end-to-end on live HL data |
+| V4.6 section override | Verified end-to-end (force `persona` → LLM modifies Persona instead of `Information Gathering`) |
 | All SPA routes | HTTP 200 |
 | All API endpoints | HTTP 200 |

@@ -1,6 +1,6 @@
 # Implementation Plan
 
-What was built, in what order, and what comes next. Reflects the system as of 2026-06-09 (`v4.5`).
+What was built, in what order, and what comes next. Reflects the system as of 2026-06-09 (`v4.6`).
 
 ---
 
@@ -186,6 +186,33 @@ UPDATE recommendations SET ..., applied_prompt_version_id=?, ...
   - `fail-text` `#F87171` (6.4:1) — for red text inside cards (solid badges keep `#EF4444`)
 - 139+ existing `text-muted` usage sites auto-fixed; ~5 targeted swaps for bare accent-text on cards
 
+### Phase 4.6 — Section structure visibility + manual override + focused diff
+
+Senior-PM critique of V4.2: section-aware insertion was already happening, but the user couldn't *see* the agent's full structure or *override* the LLM's section choice. This shipped the three concrete gaps:
+
+**A — Show full section list in ApplyDiffModal**
+- The collapsible `▾ See all N sections in this agent's prompt` panel now renders every parsed section with name + char-length + summary.
+- The LLM-picked target is highlighted with `►` + bold colored text; all other sections are muted with `·`. User can validate the LLM's choice without leaving the modal.
+- `sectionAware.sections[]` in the API response now includes `textLength` per section (was `id` + `name` + `summary` only).
+
+**B — Manual section override (backend + frontend)**
+- `PromptStructureService.proposeInsertion()` accepts optional `forcedSectionId`. When set, the LLM call is rebuilt to skip the selection step and only produce `modifiedSectionText` for that section. The system message changes to "the user has chosen a SPECIFIC section, do NOT pick a different one."
+- `routes/apply.js GET /preview-apply` accepts `?targetSectionId=<id>`. Passes through to `proposeInsertion`.
+- Cache key extended to include `forcedSectionId` so different overrides for the same recommendation each get their own cache entry.
+- `sectionAware.userForcedSection: true` flag flows back to the UI when the override was applied.
+- Frontend dropdown in modal: "Place this fix in: [AI chooses (default) / Persona / Goals / ... ]". On change, `onSectionOverride()` triggers a silent reload (modal stays open, badge shows `regenerating…`).
+- "manual override" badge appears in the section-aware header when the override is active.
+
+**C — Section-only before/after diff panel**
+- New focused diff panel rendered above the full-prompt diff: 2-column "BEFORE / AFTER" of just the changed section's verbatim text vs the LLM's modified text.
+- Skipped when `fallback` is set (blind append means there isn't a clean section-level diff to show).
+- The full-prompt diff below remains so the user can still see whole-prompt context.
+
+**Verification**:
+- Backend: forced `?targetSectionId=persona` against AI Sells Itself rec — LLM correctly modified Persona section with `userForcedSection=true`, no fallback, reasoning adapted ("adds a personalized touch to the introduction").
+- Default (no override): LLM picks `Information Gathering` with high confidence, same as before V4.6.
+- Frontend bundle inspection confirms all new strings shipped: `Place this fix in`, `See all N sections`, `Changed section only`, `manual override`.
+
 ---
 
 ## 4. Decisions made along the way
@@ -240,7 +267,7 @@ In rough priority order by customer impact:
 
 ---
 
-## 6. Acceptance criteria — current ship (v4.5)
+## 6. Acceptance criteria — current ship (v4.6)
 
 All passing as of 2026-06-09:
 
@@ -254,6 +281,7 @@ All passing as of 2026-06-09:
 - [x] V4 Apply: PATCH succeeds → new prompt_version recorded → `applied_prompt_version_id` set → next analysed call triggers `computePendingOutcomes` → outcome populates → dashboard reflects
 - [x] V4 Rollback: previous prompt restored in one click; rec returns to `status='active'`
 - [x] Semantic dedup catches "Capture Caller Details" ≈ "Capture Caller Information" before insert (verified on live data)
+- [x] Apply modal shows the full section list with the AI-picked target highlighted; user can override the section via dropdown; section-only before/after diff renders above the full-prompt diff
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200

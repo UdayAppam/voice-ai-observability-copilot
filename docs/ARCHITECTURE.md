@@ -1,6 +1,6 @@
 # Architecture
 
-Reflects the system as shipped at `v4.5`. Last updated 2026-06-09.
+Reflects the system as shipped at `v4.6`. Last updated 2026-06-09.
 
 ---
 
@@ -354,6 +354,17 @@ Every Apply surfaces 3 layers of information before the user can click Confirm:
 - **Context consistency** (V4.2 — full-prompt LLM check for contradictions / tone drift / scope creep / sequencing / redundancy / variable mismatch; quotes conflicting phrases with `conflictsWith` evidence)
 
 Confirm button label switches between `Apply AI suggestion` and `Apply your edit` based on whether the textarea has been modified — psychologically anchors authorship.
+
+### V4.6 — Section visibility + manual override + focused diff
+
+V4.2 chose the right section behind the scenes; V4.6 makes it transparent and overridable:
+
+- The Apply modal renders a collapsible **"See all N sections in this agent's prompt"** list with name + char-length + summary per section. The LLM-picked target is highlighted with `►` + bold colored text; the rest are muted.
+- A **section override dropdown** lets the user force a different section. On change, the frontend silently re-fetches `GET /api/recommendations/:recId/preview-apply?targetSectionId=<id>`. `PromptStructureService.proposeInsertion()` accepts the `forcedSectionId`, rebuilds its LLM prompt to skip selection ("you MUST target this exact section"), and only produces `modifiedSectionText`. Cache key includes `forcedSectionId` so each override variation is independently cached.
+- A **section-only before/after diff panel** sits above the full-prompt diff — 2-column "BEFORE / AFTER" of just the changed section's verbatim text vs. the LLM's modified text. Suppressed when the path fell back to blind append.
+- `sectionAware.userForcedSection: true` flag surfaces in the response so the UI can label the result as `manual override` rather than AI choice.
+
+This closes the trust gap from V4.2 — users can now SEE the structure they're editing and override the choice when needed, without leaving the modal.
 
 ### V4.3 — The missing prompt_version link (critical bug fix)
 

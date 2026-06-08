@@ -86,14 +86,24 @@
             </div>
           </div>
 
-          <!-- V4.2 — section-aware insertion info -->
+          <!-- V4.2 — section-aware insertion info + V4.6 enhancements (A, B) -->
           <div
             v-if="preview.sectionAware"
             class="bg-accent-primary/5 border-l-4 border-l-accent-primary rounded-card p-3"
           >
-            <div class="text-[10px] uppercase tracking-wide text-accent-primary font-semibold mb-1">
-              Section-aware insertion
+            <div class="flex items-center justify-between mb-1">
+              <div class="text-[10px] uppercase tracking-wide text-accent-primary-text font-semibold">
+                Section-aware insertion
+                <span
+                  v-if="preview.sectionAware.userForcedSection"
+                  class="ml-1 text-warn normal-case"
+                >· manual override</span>
+              </div>
+              <div class="text-[10px] text-text-muted">
+                Parsed into {{ preview.sectionAware.sections?.length || 0 }} section{{ (preview.sectionAware.sections?.length || 0) === 1 ? '' : 's' }}
+              </div>
             </div>
+
             <div class="text-xs text-text-secondary leading-relaxed">
               The AI determined this fix belongs in the
               <strong class="text-text-primary">{{ preview.sectionAware.targetSectionName }}</strong>
@@ -109,6 +119,89 @@
                 ⚠ Insertion fell back to append (<code>{{ preview.sectionAware.fallback }}</code>) —
                 review the diff carefully or edit the textarea below.
               </span>
+            </div>
+
+            <!-- (B) Manual section override dropdown -->
+            <div
+              v-if="preview.sectionAware.sections?.length > 1"
+              class="mt-3 flex items-center gap-2 text-[11px]"
+            >
+              <label class="text-text-muted shrink-0">Place this fix in:</label>
+              <select
+                v-model="userChosenSectionId"
+                class="bg-bg-elevated border border-border-subtle text-text-primary rounded-sm px-2 py-1 text-[11px]"
+                :disabled="reloading"
+                @change="onSectionOverride"
+              >
+                <option :value="null">
+                  AI chooses (default)
+                </option>
+                <option
+                  v-for="s in preview.sectionAware.sections"
+                  :key="s.id"
+                  :value="s.id"
+                >
+                  {{ s.name }} ({{ s.textLength }} chars)
+                </option>
+              </select>
+              <span
+                v-if="reloading"
+                class="text-text-muted text-[10px]"
+              >regenerating…</span>
+            </div>
+
+            <!-- (A) Toggleable full section breakdown -->
+            <details
+              v-if="preview.sectionAware.sections?.length > 0"
+              class="mt-3"
+            >
+              <summary class="text-[11px] text-accent-primary-text cursor-pointer hover:text-text-primary">
+                ▾ See all {{ preview.sectionAware.sections.length }} sections in this agent's prompt
+              </summary>
+              <div class="mt-2 space-y-1 pl-3 border-l-2 border-border-subtle">
+                <div
+                  v-for="s in preview.sectionAware.sections"
+                  :key="s.id"
+                  class="text-[11px] leading-relaxed"
+                  :class="s.id === preview.sectionAware.targetSectionId ? 'text-text-primary' : 'text-text-muted'"
+                >
+                  <span :class="s.id === preview.sectionAware.targetSectionId ? 'text-accent-primary-text font-semibold' : ''">
+                    {{ s.id === preview.sectionAware.targetSectionId ? '►' : '·' }}
+                    {{ s.name }}
+                  </span>
+                  <span class="text-text-muted ml-1">({{ s.textLength }} chars)</span>
+                  <span class="block ml-3 text-text-muted italic">{{ s.summary }}</span>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <!-- (C) Section-only diff — focused view of just the changed section -->
+          <div
+            v-if="preview.sectionAware?.targetSectionText && preview.sectionAware?.modifiedSectionText && !preview.sectionAware.fallback"
+            class="bg-bg-elevated/50 rounded-card p-3"
+          >
+            <div class="text-[10px] uppercase tracking-wide text-text-muted font-semibold mb-2">
+              Changed section only · {{ preview.sectionAware.targetSectionName }}
+              <span class="normal-case text-text-muted">— focused view, before/after</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <div class="text-[10px] text-text-muted mb-1">
+                  BEFORE
+                </div>
+                <pre class="bg-bg-base text-text-secondary text-[11px] font-mono p-2 rounded-sm border border-border-subtle max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ preview.sectionAware.targetSectionText }}</pre>
+              </div>
+              <div>
+                <div class="text-[10px] text-pass mb-1">
+                  AFTER
+                </div>
+                <pre class="bg-bg-base text-text-primary text-[11px] font-mono p-2 rounded-sm border border-pass/30 max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ preview.sectionAware.modifiedSectionText }}</pre>
+              </div>
+            </div>
+            <div class="text-[10px] text-text-muted mt-2">
+              {{ preview.sectionAware.modifiedSectionText.length - preview.sectionAware.targetSectionText.length }} chars added.
+              Full-prompt diff below shows the whole result.
             </div>
           </div>
 
@@ -302,6 +395,9 @@ const userEmail    = ref(localStorage.getItem('copilot.userEmail') || '')
 const applying     = ref(false)
 const applyError   = ref(null)
 const receipt      = ref(null)
+// V4.6 — user-chosen section override. null = let the AI choose.
+const userChosenSectionId = ref(null)
+const reloading    = ref(false)
 
 const { validation, validating, run, setInitial } = useDebouncedValidate(props.recommendation.id)
 
@@ -326,12 +422,15 @@ const shortId = computed(() => props.recommendation.agentId?.slice(-6) || '…')
 
 watch(userEmail, (v) => { localStorage.setItem('copilot.userEmail', v || '') })
 
-async function load() {
-  loading.value = true
+async function load(opts = {}) {
+  const { silent = false } = opts
+  if (silent) reloading.value = true
+  else loading.value = true
   loadError.value = null
   isDemoAgentError.value = false
   try {
-    const { data } = await client.get(`/recommendations/${props.recommendation.id}/preview-apply`)
+    const params = userChosenSectionId.value ? { targetSectionId: userChosenSectionId.value } : {}
+    const { data } = await client.get(`/recommendations/${props.recommendation.id}/preview-apply`, { params })
     preview.value = data
     proposedText.value = data.aiSuggestedText
     setInitial(data.validation)
@@ -343,7 +442,14 @@ async function load() {
     }
   } finally {
     loading.value = false
+    reloading.value = false
   }
+}
+
+// V4.6 — user changed the manual section override. Re-fetch preview with
+// the new targetSectionId. Loading is silent so the modal stays open.
+async function onSectionOverride() {
+  await load({ silent: true })
 }
 
 function onEdit() { run(proposedText.value) }
