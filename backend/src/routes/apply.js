@@ -7,6 +7,8 @@ const httpError = require('../utils/httpError')
 const ApplyRecommendationService = require('../services/ApplyRecommendationService')
 const RecommendationValidatorService = require('../services/RecommendationValidatorService')
 const HLVoiceAgentService = require('../services/HLVoiceAgentService')
+const PromptStructureService = require('../services/PromptStructureService')
+const db2 = require('../db/database')
 
 const router = express.Router()
 
@@ -32,13 +34,45 @@ router.get('/recommendations/:recId/preview-apply', async (req, res, next) => {
     const hl = new HLVoiceAgentService({ locationId })
     const agent = await hl.getAgent(rec.agent_id)
 
-    // V4 doesn't yet auto-merge the short suggested_change into the long agentPrompt;
-    // we append it as a clearly-marked block. Users can relocate it in the textarea
-    // before clicking Apply. V4.1 may add an LLM-driven merge step.
-    const aiSuggestedText = _mergeSuggestion(agent.agentPrompt, rec.suggested_change)
+    // V4.2: section-aware insertion. Parse the prompt into sections (cached),
+    // then ask the LLM where the suggestion belongs + produce the modified
+    // section verbatim. Splice it back into the full prompt. If anything fails,
+    // fall back to V4's blind-append behavior so the modal still renders.
+    let aiSuggestedText
+    let sections = null
+    let insertionProposal = null
+    let targetSection = null
+    try {
+      const promptVersionId = _currentPromptVersionId(rec.agent_id)
+      sections = await PromptStructureService.parseSections({
+        promptText: agent.agentPrompt,
+        promptVersionId,
+        agentGoal: agent.goal || agent.agentName,
+      })
+      const insertion = await PromptStructureService.proposeInsertion({
+        currentPrompt: agent.agentPrompt,
+        sections,
+        suggestion: rec.suggested_change || '',
+        agentName: agent.agentName,
+        agentGoal: agent.goal,
+      })
+      aiSuggestedText = insertion.mergedPrompt
+      insertionProposal = insertion.proposal
+      targetSection = insertion.targetSection || null
+    } catch (err) {
+      // Section-aware path failed (LLM hiccup, parse miss, etc) — fall back
+      // to the V4 blind-append merge. The modal still works; validators still run.
+      // Logged so we can monitor fallback frequency.
+      require('../logger').warn({ err: err.message, recId: rec.id }, 'V4.2 section-aware merge failed; falling back to append')
+      aiSuggestedText = _mergeSuggestion(agent.agentPrompt, rec.suggested_change)
+    }
 
     const validation = await RecommendationValidatorService.validate({
-      agent, currentText: agent.agentPrompt, proposedText: aiSuggestedText,
+      agent,
+      currentText: agent.agentPrompt,
+      proposedText: aiSuggestedText,
+      sections,
+      targetSectionId: insertionProposal?.targetSectionId,
     })
 
     res.json({
@@ -53,11 +87,32 @@ router.get('/recommendations/:recId/preview-apply', async (req, res, next) => {
       currentText: agent.agentPrompt,
       aiSuggestedText,
       validation,
+      // V4.2: structured insertion metadata for the UI
+      sectionAware: insertionProposal ? {
+        targetSectionId:   insertionProposal.targetSectionId,
+        targetSectionName: targetSection?.name || insertionProposal.targetSectionId,
+        targetSectionText: targetSection?.text || null,
+        modifiedSectionText: insertionProposal.modifiedSectionText,
+        insertionMode:     insertionProposal.insertionMode,
+        reasoning:         insertionProposal.reasoning,
+        confidence:        insertionProposal.confidence,
+        fallback:          insertionProposal._fallback || null,
+        sections:          sections?.map((s) => ({ id: s.id, name: s.name, summary: s.summary })),
+      } : null,
     })
   } catch (err) {
     next(err)
   }
 })
+
+// Helper — find the prompt_version_id currently associated with this agent's
+// latest prompt. Used so the PromptStructureService cache key is stable.
+function _currentPromptVersionId(agentId) {
+  const row = db2.prepare(
+    'SELECT id FROM agent_prompt_versions WHERE agent_id = ? ORDER BY first_seen_at DESC LIMIT 1'
+  ).get(agentId)
+  return row?.id || null
+}
 
 // POST /api/recommendations/:recId/validate
 // Live re-validation for the editable textarea (frontend debounces 300ms).

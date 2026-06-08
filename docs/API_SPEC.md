@@ -227,16 +227,31 @@ Flattens every Use Action across every analysis, overlaid with current lifecycle
 5 endpoints powering the V4 apply flow. Apply + rollback write to live HL Voice AI agents via `PATCH /voice-ai/agents/:id`. Snapshot-based rollback uses `apply_attempts.previous_agent_prompt` (no native HL versioning).
 
 ### `GET /api/recommendations/:recId/preview-apply`
-Initial diff-modal load. Returns current HL prompt, AI-suggested merged prompt, initial validator results.
+Initial diff-modal load. Returns current HL prompt, AI-suggested merged prompt, initial validator results, and (V4.2) section-aware insertion metadata.
 ```json
 {
   "recommendation": { "id": "...", "title": "...", "severity": "critical", "suggestedChange": "..." },
   "agent":          { "id": "...", "name": "FrontDoor AI", "currentPromptLength": 4768 },
   "currentText":    "...full agentPrompt...",
   "aiSuggestedText":"...merged proposed prompt...",
-  "validation":     { "checks": [...], "blocking": false }
+  "validation":     { "checks": [...], "blocking": false },
+  "sectionAware":   {
+    "targetSectionId":    "budget_question",
+    "targetSectionName":  "Budget Question",
+    "targetSectionText":  "...verbatim original section text...",
+    "modifiedSectionText":"...section text after change...",
+    "insertionMode":      "replace_section",   // or append_to_section / prepend_to_section / insert_after_first_paragraph
+    "reasoning":          "The suggestion directly modifies the budget question...",
+    "confidence":         "high",              // high|medium|low
+    "fallback":           null,                // or 'unknown-section' / 'section-text-mismatch'
+    "sections":           [{ "id": "persona", "name": "Persona", "summary": "..." }, ...]
+  }
 }
 ```
+
+V4.2 adds 2 new validators that surface in `validation.checks`:
+- `context_consistency` — full-prompt comparison, returns `issues[]` with `{kind, severity, detail, conflictsWith}` for each conflict
+- `section_fit` — confirms the AI-picked section exists; warns + falls back if not
 
 ### `POST /api/recommendations/:recId/validate`
 Live re-validation for the editable textarea (frontend debounces 300ms). Body: `{ proposedText }`. Returns `{ checks: [...], blocking: boolean }`.

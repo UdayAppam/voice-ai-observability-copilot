@@ -86,6 +86,32 @@
             </div>
           </div>
 
+          <!-- V4.2 — section-aware insertion info -->
+          <div
+            v-if="preview.sectionAware"
+            class="bg-accent-primary/5 border-l-4 border-l-accent-primary rounded-card p-3"
+          >
+            <div class="text-[10px] uppercase tracking-wide text-accent-primary font-semibold mb-1">
+              Section-aware insertion
+            </div>
+            <div class="text-xs text-text-secondary leading-relaxed">
+              The AI determined this fix belongs in the
+              <strong class="text-text-primary">{{ preview.sectionAware.targetSectionName }}</strong>
+              section ({{ preview.sectionAware.confidence }} confidence,
+              <code class="text-[10px]">{{ preview.sectionAware.insertionMode }}</code>).
+              <span class="text-text-muted block mt-1 italic">
+                {{ preview.sectionAware.reasoning }}
+              </span>
+              <span
+                v-if="preview.sectionAware.fallback"
+                class="block mt-2 text-warn text-[11px]"
+              >
+                ⚠ Insertion fell back to append (<code>{{ preview.sectionAware.fallback }}</code>) —
+                review the diff carefully or edit the textarea below.
+              </span>
+            </div>
+          </div>
+
           <!-- The diff with editable right panel -->
           <div>
             <div class="text-[10px] uppercase tracking-wide text-text-muted font-semibold mb-2">
@@ -148,11 +174,33 @@
               <div
                 v-for="check in validation.checks"
                 :key="check.name"
-                class="flex items-start gap-2 text-xs"
+                class="text-xs"
               >
-                <span :class="severityIconClass(check.severity)">{{ severityIcon(check.severity) }}</span>
-                <span class="text-text-primary font-medium w-40 shrink-0">{{ checkLabel(check.name) }}</span>
-                <span class="text-text-secondary flex-1 min-w-0">{{ check.message }}</span>
+                <div class="flex items-start gap-2">
+                  <span :class="severityIconClass(check.severity)">{{ severityIcon(check.severity) }}</span>
+                  <span class="text-text-primary font-medium w-40 shrink-0">{{ checkLabel(check.name) }}</span>
+                  <span class="text-text-secondary flex-1 min-w-0">{{ check.message }}</span>
+                </div>
+                <!-- V4.2 — expand context_consistency issues with the conflicting phrase -->
+                <div
+                  v-if="check.name === 'context_consistency' && check.issues?.length"
+                  class="ml-6 mt-1 mb-2 space-y-1"
+                >
+                  <div
+                    v-for="(issue, j) in check.issues"
+                    :key="j"
+                    class="text-[11px] border-l-2 border-warn/40 pl-2 py-0.5"
+                  >
+                    <span class="font-semibold text-warn">{{ kindLabel(issue.kind) }}:</span>
+                    <span class="text-text-secondary"> {{ issue.detail }}</span>
+                    <div
+                      v-if="issue.conflictsWith"
+                      class="text-text-muted italic mt-0.5"
+                    >
+                      ↳ Conflicts with: "<span class="text-text-secondary">{{ truncate(issue.conflictsWith, 120) }}</span>"
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -337,13 +385,26 @@ function severityIconClass(sev) {
 }
 function checkLabel(name) {
   return ({
-    template_vars:     'Variables',
-    length:            'Length limit',
-    tone:              'Brand voice',
-    forbidden_content: 'Safety check',
-    call_length:       'Call-length impact',
-    network:           'Connection',
+    template_vars:        'Variables',
+    length:               'Length limit',
+    tone:                 'Brand voice',
+    forbidden_content:    'Safety check',
+    call_length:          'Call-length impact',
+    network:              'Connection',
+    context_consistency:  'Context consistency',
+    section_fit:          'Section fit',
   }[name]) || name
+}
+// V4.2 — labels for context_consistency issue kinds (mirrors backend _kindLabel)
+function kindLabel(kind) {
+  return ({
+    contradiction:     'Contradiction',
+    tone_drift:        'Tone drift',
+    scope_creep:       'Scope creep',
+    sequencing:        'Sequencing conflict',
+    redundancy:        'Redundancy',
+    variable_mismatch: 'Template variable mismatch',
+  })[kind] || kind
 }
 function truncate(s, n) { return s && s.length > n ? s.slice(0, n) + '…' : s }
 

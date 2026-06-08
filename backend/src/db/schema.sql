@@ -119,6 +119,18 @@ CREATE TABLE IF NOT EXISTS oauth_installations (
   updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- V4.2 — cached parse of an agent prompt into named sections (Persona, Goals,
+-- Script, Tone, etc.). Keyed by prompt_version_id so each distinct prompt is
+-- parsed once and cached. Used by the section-aware insertion + section-fit
+-- validator. parser_version lets us invalidate the cache when we change the
+-- parsing prompt.
+CREATE TABLE IF NOT EXISTS agent_prompt_structure (
+  prompt_version_id  TEXT PRIMARY KEY REFERENCES agent_prompt_versions(id) ON DELETE CASCADE,
+  parsed_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  sections_json      TEXT NOT NULL,
+  parser_version     TEXT NOT NULL DEFAULT '1.0'
+);
+
 -- V4.1 — many-to-many join between recommendations and the calls that surfaced them.
 -- Replaces the misleading `recommendations.occurrence_count` (which counted analysis
 -- re-runs, not unique calls). Lets the Patterns UI say "Detected in N calls · M failed"

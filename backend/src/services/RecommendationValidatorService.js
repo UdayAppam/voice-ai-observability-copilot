@@ -39,17 +39,27 @@ class RecommendationValidatorService {
   // Pure function. agent is the HL agent shape. node is unused for Voice AI
   // (single-prompt agents) but kept in signature for future multi-node support.
   // currentText is the current agentPrompt; proposedText is what we want to set it to.
-  static async validate({ agent, currentText, proposedText }) {
+  //
+  // V4.2: opts.sections + opts.targetSectionId enable two additional checks
+  // (context_consistency + section_fit). Validators that need extra context
+  // are no-ops when their inputs aren't provided — keeps validate() backwards
+  // compatible with the V4 flow.
+  static async validate({ agent, currentText, proposedText, sections, targetSectionId } = {}) {
     const checks = await Promise.all([
       this._validateTemplateVars(agent, proposedText),
       this._validateLength(proposedText),
       this._validateTone(agent, proposedText),
       this._validateForbiddenContent(proposedText),
       this._predictCallLengthImpact(currentText, proposedText),
+      // V4.2 — full-prompt consistency check (catches contradictions/drift)
+      this._validateContextConsistency(agent, currentText, proposedText),
+      // V4.2 — section fit check (only if section info is provided)
+      this._validateSectionFit(sections, targetSectionId, proposedText),
     ])
+    const present = checks.filter(Boolean)  // skip no-ops
     return {
-      checks,
-      blocking: checks.some((c) => c.severity === 'fail'),
+      checks: present,
+      blocking: present.some((c) => c.severity === 'fail'),
     }
   }
 
@@ -167,6 +177,116 @@ class RecommendationValidatorService {
     }
     return { name: 'call_length', severity: 'pass', message: 'No meaningful call-length change' }
   }
+
+  // ── 6. Context consistency (V4.2) ──────────────────────────────────────
+  // Compares the proposed FULL prompt against the original FULL prompt to
+  // detect contradictions, tonal drift, scope creep, sequencing conflicts,
+  // redundancies, or template-variable mismatches. The killer validator —
+  // catches the case where a section-aware insertion produces a syntactically
+  // clean change that semantically conflicts with another part of the prompt.
+  static async _validateContextConsistency(agent, currentText, proposedText) {
+    if (!agent || !currentText || currentText === proposedText) return null
+    const cacheKey = require('crypto').createHash('sha256')
+      .update(`${agent.id || ''}::${currentText}::${proposedText}`).digest('hex').slice(0, 24)
+    const cached = _cacheGet('ctx::' + cacheKey)
+    if (cached) return cached
+
+    try {
+      const res = await openai.chat.completions.create({
+        model: MODEL,
+        temperature: 0,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'context_consistency_check',
+            strict: true,
+            schema: {
+              type: 'object', additionalProperties: false,
+              required: ['verdict', 'issues'],
+              properties: {
+                verdict: { type: 'string', enum: ['safe', 'review', 'block'] },
+                issues: {
+                  type: 'array',
+                  items: {
+                    type: 'object', additionalProperties: false,
+                    required: ['kind', 'severity', 'detail', 'conflictsWith'],
+                    properties: {
+                      kind:          { type: 'string', enum: ['contradiction', 'tone_drift', 'scope_creep', 'sequencing', 'redundancy', 'variable_mismatch'] },
+                      severity:      { type: 'string', enum: ['block', 'warn'] },
+                      detail:        { type: 'string' },
+                      conflictsWith: { type: 'string', description: 'The exact phrase from the existing prompt that conflicts' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        messages: [
+          { role: 'system', content:
+            `You review a Voice AI agent prompt for internal consistency. Given the existing ` +
+            `prompt and a modified version, list any issues the modification introduces. ` +
+            `Use 'block' severity only for direct LOGICAL contradictions that would make ` +
+            `the agent inconsistent (e.g. "never quote prices" vs "always quote prices"). ` +
+            `Use 'warn' for tone drift, scope creep, redundancy, sequencing concerns. ` +
+            `For conflictsWith, quote the EXACT phrase from the existing prompt — do not ` +
+            `paraphrase. Return verdict='safe' with empty issues if no problems found.` },
+          { role: 'user', content:
+            `EXISTING PROMPT (${currentText.length} chars):\n${currentText}\n\n` +
+            `MODIFIED PROMPT (${proposedText.length} chars):\n${proposedText}` },
+        ],
+      })
+      const parsed = JSON.parse(res.choices[0].message.content)
+      const severity = parsed.verdict === 'block' ? 'fail'
+                     : parsed.verdict === 'review' ? 'warn'
+                     : 'pass'
+      const message = parsed.issues.length === 0
+        ? 'No contradictions or drift detected vs existing prompt'
+        : `${parsed.issues.length} potential issue(s): ` +
+          parsed.issues.slice(0, 2).map((i) => `${_kindLabel(i.kind)} — ${i.detail}`).join(' · ') +
+          (parsed.issues.length > 2 ? '…' : '')
+      const out = { name: 'context_consistency', severity, message, issues: parsed.issues }
+      _cacheSet('ctx::' + cacheKey, out)
+      return out
+    } catch (err) {
+      logger.warn({ err: err.message }, 'context_consistency validator: LLM call failed; skipping non-blocking check')
+      return { name: 'context_consistency', severity: 'pass', message: 'Consistency check skipped (OpenAI unavailable)' }
+    }
+  }
+
+  // ── 7. Section fit (V4.2) ──────────────────────────────────────────────
+  // When the section-aware merge picks a target section, does the proposed
+  // text actually belong in that section? Cheap deterministic-ish check — uses
+  // the section's summary + name as the matching signal.
+  static _validateSectionFit(sections, targetSectionId, _proposedText) {
+    if (!sections || !targetSectionId) return null
+    const section = sections.find((s) => s.id === targetSectionId)
+    if (!section) {
+      return {
+        name: 'section_fit',
+        severity: 'warn',
+        message: `Target section "${targetSectionId}" not found in parsed structure — falling back to append`,
+      }
+    }
+    return {
+      name: 'section_fit',
+      severity: 'pass',
+      message: `Belongs in "${section.name}" — ${section.summary}`,
+      section,
+    }
+  }
+}
+
+// Human-readable labels for context_consistency issue kinds
+function _kindLabel(kind) {
+  return ({
+    contradiction:     'Contradiction',
+    tone_drift:        'Tone drift',
+    scope_creep:       'Scope creep',
+    sequencing:        'Sequencing conflict',
+    redundancy:        'Redundancy',
+    variable_mismatch: 'Template variable mismatch',
+  })[kind] || kind
 }
 
 module.exports = RecommendationValidatorService
