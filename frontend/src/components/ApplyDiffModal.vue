@@ -72,7 +72,7 @@
             <span class="text-text-muted mx-2">·</span>
             <span class="text-text-muted">Current prompt:</span> {{ preview.agent.currentPromptLength.toLocaleString() }} chars
             <span class="text-text-muted mx-2">·</span>
-            <span class="text-text-muted">Will become:</span> ~{{ proposedText.length.toLocaleString() }} chars
+            <span class="text-text-muted">Will become:</span> ~{{ proposedFullText.length.toLocaleString() }} chars
           </div>
 
           <!-- Why this recommendation -->
