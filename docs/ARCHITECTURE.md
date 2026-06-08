@@ -1,6 +1,6 @@
 # Architecture
 
-Reflects the system as shipped at `v4.6`. Last updated 2026-06-09.
+Reflects the system as shipped at `v4.7`. Last updated 2026-06-09.
 
 ---
 
@@ -365,6 +365,17 @@ V4.2 chose the right section behind the scenes; V4.6 makes it transparent and ov
 - `sectionAware.userForcedSection: true` flag surfaces in the response so the UI can label the result as `manual override` rather than AI choice.
 
 This closes the trust gap from V4.2 — users can now SEE the structure they're editing and override the choice when needed, without leaving the modal.
+
+### V4.7 — Section-focused editor + inline diff highlighting
+
+V4.6 made the section choice visible; V4.7 makes the section the **editing surface**:
+
+- **Default editor**: the textarea is pre-filled with `modifiedSectionText` only (~500 chars) instead of the full merged prompt (~5000 chars). Splice math happens client-side: `proposedFullText = currentText.slice(0, idx) + editedSectionText + currentText.slice(idx + targetSectionText.length)`. The backend apply endpoint receives the spliced final text — no API contract change.
+- **Word-level diff highlighting**: `diff` library (Myers algorithm) renders `BEFORE → AFTER` as colored `<span>` chunks — green-tint for added, red-tint+strikethrough for removed, muted for unchanged. Applied in (a) the section-only preview panel and (b) the "Show full prompt context" expand. Eye lands on the change instantly.
+- **Mode toggle**: `⤢ Edit whole prompt instead` switches to the full-prompt editor (the V4.6 behavior). Seeds `editedFullText` with the current `proposedFullText` so the user's section edits aren't lost. Switching back uses prefix+suffix matching to best-effort recover section edits.
+- **Auto-fallback**: when `sectionAware.fallback` is non-null (LLM picked invalid section / section text mismatch) OR `targetSectionText` not found in `currentText`, the modal auto-opens in whole-prompt mode with a yellow notice explaining why.
+
+Why client-side splice and not backend? Three reasons: (1) backend validators run against the spliced full prompt anyway — no new validation needed; (2) keeps the apply API stable (`finalText` semantics unchanged); (3) the splice is O(1) and deterministic — `targetSectionText` is guaranteed verbatim in `currentText` by `PromptStructureService` (or `sectionEditAvailable` is false).
 
 ### V4.3 — The missing prompt_version link (critical bug fix)
 

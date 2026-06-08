@@ -1,6 +1,6 @@
 # Implementation Plan
 
-What was built, in what order, and what comes next. Reflects the system as of 2026-06-09 (`v4.6`).
+What was built, in what order, and what comes next. Reflects the system as of 2026-06-09 (`v4.7`).
 
 ---
 
@@ -213,6 +213,47 @@ Senior-PM critique of V4.2: section-aware insertion was already happening, but t
 - Default (no override): LLM picks `Information Gathering` with high confidence, same as before V4.6.
 - Frontend bundle inspection confirms all new strings shipped: `Place this fix in`, `See all N sections`, `Changed section only`, `manual override`.
 
+### Phase 4.7 — Section-focused editor + word-level diff highlighting
+
+Senior-PM critique of V4.6: the section-aware logic was visible via info panels but the editing surface was still a 5000-char textarea showing the whole merged prompt. User had to scroll/search to find what to tune. And the section-only before/after panel showed `BEFORE` and `AFTER` as plain text — user had to mentally diff to see what changed.
+
+**A — Word-level diff highlighting**
+- New `diff` npm dep (`^9.0.0`, Myers algorithm, ~30KB minified) imported in `ApplyDiffModal.vue`.
+- `diffChunks(before, after)` helper turns string pairs into `[{type: added|removed|unchanged, text}]`.
+- `diffChunkClass(type)` returns Tailwind classes: `bg-pass/20 text-pass` for added, `bg-fail/15 text-fail-text line-through` for removed, muted for unchanged.
+- Two computed properties: `sectionDiff` (target section before vs LLM-modified) and `fullPromptDiff` (whole current vs proposedFullText).
+- Render: `<span v-for="(c, i) in chunks" :class="diffChunkClass(c.type)">{{ c.text }}</span>` inside a `<pre>` block. Whitespace preserved.
+
+**B — Section-focused editor as default**
+- New state: `editedSectionText` (the section being edited), `editedFullText` (fallback / opt-in whole-prompt mode), `editMode: 'section' | 'full'`.
+- `sectionEditAvailable` computed — `true` when `sectionAware` exists, `fallback` is null, `targetSectionText` is non-empty AND is a verbatim substring of `currentText`. False → auto-switches to 'full' mode.
+- `proposedFullText` computed — in `'section'` mode, splices `editedSectionText` back into `currentText` (replacing `targetSectionText` by indexOf+slice); in `'full'` mode, returns `editedFullText` verbatim.
+- `watch(proposedFullText)` triggers debounced validate — same backend contract as before, no API changes.
+- `onConfirm` sends `proposedFullText.value` as `finalText` — backend doesn't know or care about section mode.
+
+**Modal layout (default — section mode)**:
+- Section-aware info card (existing V4.6)
+- "AI's change to {SectionName} — added text highlighted" panel: highlighted diff preview, shown until user edits
+- Side-by-side: `ORIGINAL · {SectionName}` (read-only, ~500 chars) | `MODIFIED (editable)` textarea (pre-filled with `modifiedSectionText`)
+- Collapsible "▾ Show full prompt context" → reveals full-prompt with highlighted spans for whatever the splice produced
+- `⤢ Edit whole prompt instead` button toggles to `'full'` mode
+
+**Modal layout (full mode — opt-in or fallback)**:
+- Yellow notice when sectionEdit unavailable explaining why
+- Side-by-side: `CURRENT (whole prompt)` | `PROPOSED (editable)` (~5000 chars)
+- Collapsible "▾ Show what changed" → highlighted diff view
+- `⤡ Back to section-focused edit` button (when sectionEditAvailable)
+
+**`toggleEditMode()` preserves user's edits**:
+- Going `section → full`: seeds `editedFullText` with the current `proposedFullText` (whatever the splice would produce)
+- Going `full → section`: best-effort tries to re-extract the user's section edits from the full prompt by matching the prefix+suffix; only succeeds if the user didn't touch the other-section text.
+
+**Verification**:
+- Build clean (`✓ built in 4.40s`, 44KB bundle for PatternsView chunk).
+- Strings shipped: `AI's change to`, `Edit just the`, `Edit whole prompt`, `Show full prompt context`, `Show what changed`.
+- Splice math: `currentText.indexOf(targetSectionText) + editedSectionText` symmetric with `aiSuggestedText` when user hasn't edited (validated by inspection).
+- Fallback path: when `sectionAware.fallback` is non-null OR `targetSectionText` not in `currentText`, auto-switches to whole-prompt editor.
+
 ---
 
 ## 4. Decisions made along the way
@@ -267,7 +308,7 @@ In rough priority order by customer impact:
 
 ---
 
-## 6. Acceptance criteria — current ship (v4.6)
+## 6. Acceptance criteria — current ship (v4.7)
 
 All passing as of 2026-06-09:
 
@@ -282,6 +323,7 @@ All passing as of 2026-06-09:
 - [x] V4 Rollback: previous prompt restored in one click; rec returns to `status='active'`
 - [x] Semantic dedup catches "Capture Caller Details" ≈ "Capture Caller Information" before insert (verified on live data)
 - [x] Apply modal shows the full section list with the AI-picked target highlighted; user can override the section via dropdown; section-only before/after diff renders above the full-prompt diff
+- [x] Apply modal opens with section-focused editor (just the target section) by default; user edits ~500 chars instead of ~5000; whole-prompt edit available via toggle; word-level diff highlights (green=added) make AI's change visually scannable in both views
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200

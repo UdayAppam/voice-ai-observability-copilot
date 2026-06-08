@@ -84,7 +84,7 @@ Target: **4 minutes** (range 3:30 – 4:45).
 
 [Diff modal opens]
 
-> "Modal shows the current 5,000-character agent prompt on the left, the AI-suggested addition on the right — fully editable if I want to tune wording. The product already parsed this agent's prompt into **10 named sections** — Persona, Goals, Information Gathering, Script, and so on — and decided this fix belongs in **Information Gathering** with high confidence. If I disagree, I drop down the **'Place this fix in'** picker and choose another section — the LLM regenerates the modification for that target. Seven validators ran live: variables, length, brand voice, safety, call-length, plus V4.2's section-fit and context-consistency — all green."
+> "Modal opens **focused on the one section being changed** — not the whole 5,000-character prompt. I see the original section on the left, the AI's modified version on the right with **the added text highlighted in green**. The product parsed this agent's prompt into **10 named sections** — Persona, Goals, Information Gathering, Script — and decided this fix belongs in **Information Gathering** with high confidence. If I disagree, the **'Place this fix in'** picker lets me re-target any section. Seven validators ran live: variables, length, brand voice, safety, call-length, plus V4.2's section-fit and context-consistency — all green."
 
 [Click `▶ Apply AI suggestion`]
 

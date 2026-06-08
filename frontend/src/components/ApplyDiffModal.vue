@@ -176,75 +176,81 @@
             </details>
           </div>
 
-          <!-- (C) Section-only diff — focused view of just the changed section -->
-          <div
-            v-if="preview.sectionAware?.targetSectionText && preview.sectionAware?.modifiedSectionText && !preview.sectionAware.fallback"
-            class="bg-bg-elevated/50 rounded-card p-3"
-          >
-            <div class="text-[10px] uppercase tracking-wide text-text-muted font-semibold mb-2">
-              Changed section only · {{ preview.sectionAware.targetSectionName }}
-              <span class="normal-case text-text-muted">— focused view, before/after</span>
+          <!-- V4.7 — Edit-mode toggle (section-focused vs whole-prompt) -->
+          <div class="flex items-center justify-between">
+            <div class="text-[10px] uppercase tracking-wide text-text-muted font-semibold">
+              {{ editMode === 'section' ? `Edit just the ${preview.sectionAware?.targetSectionName || 'target'} section` : 'Edit whole prompt' }}
+              <span class="normal-case text-text-muted">— added text is highlighted</span>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <div class="text-[10px] text-text-muted mb-1">
-                  BEFORE
-                </div>
-                <pre class="bg-bg-base text-text-secondary text-[11px] font-mono p-2 rounded-sm border border-border-subtle max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ preview.sectionAware.targetSectionText }}</pre>
-              </div>
-              <div>
-                <div class="text-[10px] text-pass mb-1">
-                  AFTER
-                </div>
-                <pre class="bg-bg-base text-text-primary text-[11px] font-mono p-2 rounded-sm border border-pass/30 max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ preview.sectionAware.modifiedSectionText }}</pre>
-              </div>
-            </div>
-            <div class="text-[10px] text-text-muted mt-2">
-              {{ preview.sectionAware.modifiedSectionText.length - preview.sectionAware.targetSectionText.length }} chars added.
-              Full-prompt diff below shows the whole result.
+            <div class="flex items-center gap-2">
+              <button
+                v-if="sectionEditAvailable"
+                class="text-[10px] text-accent-primary-text hover:text-text-primary px-2 py-1 rounded-sm border border-border-subtle"
+                @click="toggleEditMode"
+              >
+                {{ editMode === 'section' ? '⤢ Edit whole prompt instead' : '⤡ Back to section-focused edit' }}
+              </button>
+              <button
+                v-if="edited"
+                class="text-[10px] text-accent-primary-text hover:text-accent-secondary-text"
+                @click="resetToAi"
+              >
+                ↺ Reset to AI suggestion
+              </button>
             </div>
           </div>
 
-          <!-- The diff with editable right panel -->
-          <div>
-            <div class="text-[10px] uppercase tracking-wide text-text-muted font-semibold mb-2">
-              Diff · current vs proposed (right panel is editable)
+          <!-- V4.7a — SECTION-FOCUSED EDITOR (default when sectionAware works) -->
+          <div v-if="editMode === 'section' && sectionEditAvailable">
+            <!-- Inline diff preview at top — shows the AI's section change with added/removed highlights -->
+            <div
+              v-if="!edited && sectionDiff"
+              class="bg-pass/5 border-l-4 border-l-pass/50 rounded-card p-3 mb-3"
+            >
+              <div class="text-[10px] uppercase tracking-wide text-pass font-semibold mb-1.5">
+                AI's change to <strong>{{ preview.sectionAware.targetSectionName }}</strong>
+                — added text highlighted
+              </div>
+              <pre class="text-[11px] font-mono whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto"><span
+                v-for="(c, i) in sectionDiff"
+                :key="i"
+                :class="diffChunkClass(c.type)"
+              >{{ c.text }}</span></pre>
+              <div class="text-[10px] text-text-muted mt-2">
+                {{ preview.sectionAware.modifiedSectionText.length - preview.sectionAware.targetSectionText.length }} chars added · review or edit below
+              </div>
             </div>
+
+            <!-- The actual editable surface — just the target section -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <!-- Current (read-only) -->
+              <!-- BEFORE (read-only) -->
               <div>
                 <div class="text-[10px] text-text-muted mb-1">
-                  CURRENT
+                  ORIGINAL · {{ preview.sectionAware.targetSectionName }}
+                  ({{ preview.sectionAware.targetSectionText?.length || 0 }} chars)
                 </div>
-                <pre class="bg-bg-elevated text-text-secondary text-[11px] font-mono p-3 rounded-card border border-border-subtle h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ preview.currentText }}</pre>
+                <pre class="bg-bg-elevated text-text-secondary text-[11px] font-mono p-3 rounded-card border border-border-subtle h-56 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ preview.sectionAware.targetSectionText }}</pre>
               </div>
-              <!-- Proposed (editable) -->
+              <!-- AFTER (editable) -->
               <div>
-                <div class="text-[10px] text-text-muted mb-1 flex items-center justify-between">
-                  <span>PROPOSED <span class="text-accent-primary normal-case">(editable)</span></span>
-                  <button
-                    v-if="edited"
-                    class="text-[10px] text-accent-primary hover:text-accent-secondary"
-                    @click="resetToAi"
-                  >
-                    ↺ Reset to AI suggestion
-                  </button>
+                <div class="text-[10px] mb-1 flex items-center justify-between">
+                  <span class="text-pass">MODIFIED <span class="text-accent-primary-text normal-case">(editable)</span></span>
+                  <span class="text-text-muted normal-case">{{ editedSectionText.length }} chars</span>
                 </div>
                 <textarea
-                  v-model="proposedText"
-                  class="bg-bg-elevated text-text-primary text-[11px] font-mono p-3 rounded-card border h-64 w-full overflow-y-auto whitespace-pre-wrap leading-relaxed resize-none focus:outline-none focus:ring-1"
-                  :class="edited ? 'border-accent-primary/50 focus:ring-accent-primary' : 'border-border-subtle focus:ring-accent-primary/50'"
+                  v-model="editedSectionText"
+                  class="bg-bg-elevated text-text-primary text-[11px] font-mono p-3 rounded-card border h-56 w-full overflow-y-auto whitespace-pre-wrap leading-relaxed resize-none focus:outline-none focus:ring-1"
+                  :class="edited ? 'border-accent-primary/50 focus:ring-accent-primary' : 'border-pass/30 focus:ring-pass/50'"
                   spellcheck="false"
-                  @input="onEdit"
                 />
                 <div class="text-[10px] text-text-muted mt-1 flex items-center gap-2">
                   <span
                     v-if="!edited"
                     class="text-text-muted"
-                  >ⓘ AI suggestion · ✎ 0 chars edited</span>
+                  >ⓘ AI's section text · click textarea to tune wording</span>
                   <span
                     v-else
-                    class="text-accent-secondary"
+                    class="text-accent-secondary-text"
                   >✎ {{ editDelta }} chars edited from AI suggestion</span>
                   <span class="text-text-muted">·</span>
                   <span :class="validating ? 'text-warn' : 'text-text-muted'">
@@ -253,6 +259,90 @@
                 </div>
               </div>
             </div>
+
+            <!-- Collapsed "see full prompt context" expand -->
+            <details class="mt-3">
+              <summary class="text-[11px] text-accent-primary-text cursor-pointer hover:text-text-primary">
+                ▾ Show full prompt context (read-only, with your section spliced in)
+              </summary>
+              <div class="mt-2">
+                <div class="text-[10px] uppercase tracking-wide text-text-muted mb-1">
+                  Full prompt after splice ({{ proposedFullText.length }} chars total)
+                </div>
+                <pre
+                  v-if="fullPromptDiff"
+                  class="bg-bg-elevated text-[11px] font-mono p-3 rounded-card border border-border-subtle max-h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed"
+                ><span
+                  v-for="(c, i) in fullPromptDiff"
+                  :key="i"
+                  :class="diffChunkClass(c.type)"
+                >{{ c.text }}</span></pre>
+              </div>
+            </details>
+          </div>
+
+          <!-- V4.7b — WHOLE-PROMPT EDITOR (fallback OR user opted in) -->
+          <div v-else>
+            <div
+              v-if="!sectionEditAvailable"
+              class="text-[10px] text-warn mb-2"
+            >
+              ⚠ Section-focused edit unavailable
+              ({{ preview.sectionAware?.fallback || 'no section info' }}) — editing the whole prompt instead.
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <!-- Current full prompt (read-only, with highlights) -->
+              <div>
+                <div class="text-[10px] text-text-muted mb-1">
+                  CURRENT (whole prompt, {{ preview.currentText.length }} chars)
+                </div>
+                <pre class="bg-bg-elevated text-text-secondary text-[11px] font-mono p-3 rounded-card border border-border-subtle h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ preview.currentText }}</pre>
+              </div>
+              <!-- Proposed full prompt (editable) -->
+              <div>
+                <div class="text-[10px] mb-1 flex items-center justify-between">
+                  <span class="text-text-muted">PROPOSED <span class="text-accent-primary-text normal-case">(editable)</span></span>
+                  <span class="text-text-muted normal-case">{{ editedFullText.length }} chars</span>
+                </div>
+                <textarea
+                  v-model="editedFullText"
+                  class="bg-bg-elevated text-text-primary text-[11px] font-mono p-3 rounded-card border h-64 w-full overflow-y-auto whitespace-pre-wrap leading-relaxed resize-none focus:outline-none focus:ring-1"
+                  :class="edited ? 'border-accent-primary/50 focus:ring-accent-primary' : 'border-border-subtle focus:ring-accent-primary/50'"
+                  spellcheck="false"
+                />
+                <div class="text-[10px] text-text-muted mt-1 flex items-center gap-2">
+                  <span
+                    v-if="!edited"
+                    class="text-text-muted"
+                  >ⓘ AI suggestion · ✎ 0 chars edited</span>
+                  <span
+                    v-else
+                    class="text-accent-secondary-text"
+                  >✎ {{ editDelta }} chars edited from AI suggestion</span>
+                  <span class="text-text-muted">·</span>
+                  <span :class="validating ? 'text-warn' : 'text-text-muted'">
+                    {{ validating ? 'validating…' : 'validators ready' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Inline change overview (highlighted) -->
+            <details
+              v-if="fullPromptDiff"
+              class="mt-3"
+            >
+              <summary class="text-[11px] text-accent-primary-text cursor-pointer hover:text-text-primary">
+                ▾ Show what changed (highlighted view, read-only)
+              </summary>
+              <div class="mt-2">
+                <pre class="bg-bg-elevated text-[11px] font-mono p-3 rounded-card border border-border-subtle max-h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed"><span
+                  v-for="(c, i) in fullPromptDiff"
+                  :key="i"
+                  :class="diffChunkClass(c.type)"
+                >{{ c.text }}</span></pre>
+              </div>
+            </details>
           </div>
 
           <!-- Validators -->
@@ -375,6 +465,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { diffWords } from 'diff'
 import client from '@/api/client'
 import { useDebouncedValidate } from '@/composables/useDebouncedValidate'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -390,7 +481,6 @@ const loading      = ref(true)
 const loadError    = ref(null)
 const isDemoAgentError = ref(false)
 const preview      = ref(null)
-const proposedText = ref('')
 const userEmail    = ref(localStorage.getItem('copilot.userEmail') || '')
 const applying     = ref(false)
 const applyError   = ref(null)
@@ -398,11 +488,72 @@ const receipt      = ref(null)
 // V4.6 — user-chosen section override. null = let the AI choose.
 const userChosenSectionId = ref(null)
 const reloading    = ref(false)
+// V4.7 — section-focused editor as primary surface
+//   editedSectionText: just the modified-section text (default editing mode)
+//   editedFullText:    fallback when section-focused path can't apply (no sectionAware,
+//                      or splice mismatch). Also used when user expands "edit full prompt".
+//   editMode:          'section' (focused) | 'full' (whole prompt). Default 'section'
+//                      when sectionAware is usable; auto-switches to 'full' otherwise.
+const editedSectionText = ref('')
+const editedFullText    = ref('')
+const editMode          = ref('section')
 
 const { validation, validating, run, setInitial } = useDebouncedValidate(props.recommendation.id)
 
-const edited     = computed(() => proposedText.value !== preview.value?.aiSuggestedText)
-const editDelta  = computed(() => Math.abs(proposedText.value.length - (preview.value?.aiSuggestedText.length || 0)))
+// Is the section-focused path viable for this preview?
+//   - sectionAware metadata exists
+//   - no fallback (LLM didn't fall back to blind append)
+//   - targetSectionText exists in the original prompt (sanity check for splice)
+const sectionEditAvailable = computed(() => {
+  const sa = preview.value?.sectionAware
+  if (!sa || sa.fallback) return false
+  if (!sa.targetSectionText || !sa.modifiedSectionText) return false
+  return preview.value.currentText.includes(sa.targetSectionText)
+})
+
+// The final full prompt to send to the apply endpoint. In 'section' mode this
+// is computed by splicing editedSectionText back into the original prompt; in
+// 'full' mode it's the user's whole-prompt edit verbatim.
+const proposedFullText = computed(() => {
+  if (!preview.value) return ''
+  if (editMode.value === 'full' || !sectionEditAvailable.value) return editedFullText.value
+  const ct = preview.value.currentText
+  const orig = preview.value.sectionAware.targetSectionText
+  const idx = ct.indexOf(orig)
+  if (idx === -1) return editedFullText.value  // safety: splice failed → fall back
+  return ct.slice(0, idx) + editedSectionText.value + ct.slice(idx + orig.length)
+})
+
+// Edited = user diverged from the AI's suggestion in whichever mode they're using.
+const edited = computed(() => {
+  if (!preview.value) return false
+  if (editMode.value === 'full') return editedFullText.value !== preview.value.aiSuggestedText
+  return editedSectionText.value !== preview.value.sectionAware?.modifiedSectionText
+})
+const editDelta = computed(() => {
+  if (!preview.value) return 0
+  if (editMode.value === 'full') return Math.abs(editedFullText.value.length - preview.value.aiSuggestedText.length)
+  return Math.abs(editedSectionText.value.length - (preview.value.sectionAware?.modifiedSectionText?.length || 0))
+})
+
+// V4.7 — word-level diff helper. Returns [{type, text}] chunks for highlight rendering.
+// `added`/`removed` chunks are colored; others are unchanged.
+function diffChunks(before, after) {
+  if (!before || !after) return [{ type: 'unchanged', text: after || before || '' }]
+  return diffWords(before, after).map((part) => ({
+    type: part.added ? 'added' : part.removed ? 'removed' : 'unchanged',
+    text: part.value,
+  }))
+}
+const sectionDiff = computed(() => {
+  const sa = preview.value?.sectionAware
+  if (!sa?.targetSectionText || !sa?.modifiedSectionText) return null
+  return diffChunks(sa.targetSectionText, sa.modifiedSectionText)
+})
+const fullPromptDiff = computed(() => {
+  if (!preview.value) return null
+  return diffChunks(preview.value.currentText, proposedFullText.value)
+})
 const blockingReason = computed(() => {
   if (!validation.value) return null
   const blockers = validation.value.checks.filter((c) => c.severity === 'fail')
@@ -432,7 +583,13 @@ async function load(opts = {}) {
     const params = userChosenSectionId.value ? { targetSectionId: userChosenSectionId.value } : {}
     const { data } = await client.get(`/recommendations/${props.recommendation.id}/preview-apply`, { params })
     preview.value = data
-    proposedText.value = data.aiSuggestedText
+    // V4.7 init: pre-fill both edit surfaces from the preview, auto-pick mode.
+    editedSectionText.value = data.sectionAware?.modifiedSectionText || ''
+    editedFullText.value    = data.aiSuggestedText
+    editMode.value = (data.sectionAware && !data.sectionAware.fallback &&
+                      data.sectionAware.targetSectionText &&
+                      data.currentText?.includes(data.sectionAware.targetSectionText))
+      ? 'section' : 'full'
     setInitial(data.validation)
   } catch (err) {
     if (err.code === 'DEMO_AGENT') {
@@ -452,10 +609,42 @@ async function onSectionOverride() {
   await load({ silent: true })
 }
 
-function onEdit() { run(proposedText.value) }
+// V4.7 — re-validate whenever the final spliced text changes (either mode).
+watch(proposedFullText, (v) => {
+  if (preview.value) run(v)
+})
+
 function resetToAi() {
-  proposedText.value = preview.value.aiSuggestedText
+  if (!preview.value) return
+  editedSectionText.value = preview.value.sectionAware?.modifiedSectionText || ''
+  editedFullText.value    = preview.value.aiSuggestedText
   setInitial(preview.value.validation)
+}
+
+function toggleEditMode() {
+  // When entering 'full' mode, seed editedFullText from the currently-spliced
+  // proposedFullText so the user keeps any section-mode edits.
+  if (editMode.value === 'section') {
+    editedFullText.value = proposedFullText.value
+    editMode.value = 'full'
+  } else {
+    // Going back to section mode discards full-prompt edits outside the
+    // target section — warn if there are any.
+    const sa = preview.value?.sectionAware
+    if (sa?.targetSectionText && preview.value.currentText.includes(sa.targetSectionText)) {
+      // Try to re-extract the user's section edits from the full prompt
+      // (best-effort: only succeeds if other-section text is unchanged).
+      const ct = preview.value.currentText
+      const orig = sa.targetSectionText
+      const idx = ct.indexOf(orig)
+      const fullPrefix = ct.slice(0, idx)
+      const fullSuffix = ct.slice(idx + orig.length)
+      if (editedFullText.value.startsWith(fullPrefix) && editedFullText.value.endsWith(fullSuffix)) {
+        editedSectionText.value = editedFullText.value.slice(fullPrefix.length, editedFullText.value.length - fullSuffix.length)
+      }
+    }
+    editMode.value = 'section'
+  }
 }
 
 async function onConfirm() {
@@ -464,9 +653,8 @@ async function onConfirm() {
   try {
     const { data } = await client.post(
       `/agents/${props.recommendation.agentId}/recommendations/${props.recommendation.id}/apply`,
-      { finalText: proposedText.value, userEmail: userEmail.value || null }
+      { finalText: proposedFullText.value, userEmail: userEmail.value || null }
     )
-    // Augment receipt with name for the panel header
     receipt.value = { ...data, agentName: preview.value.agent.name }
   } catch (err) {
     applyError.value = err.message || (err.body?.error?.message) || 'Apply failed'
@@ -481,6 +669,14 @@ function onCancel() {
     if (!confirm('Discard your edits and close?')) return
   }
   emit('close', { applied: !!receipt.value, receipt: receipt.value })
+}
+
+// V4.7 — color spans by diff chunk type. `added` green, `removed` red strikethrough,
+// `unchanged` muted so the eye lands on the change.
+function diffChunkClass(type) {
+  if (type === 'added')    return 'bg-pass/20 text-pass rounded-sm px-0.5'
+  if (type === 'removed')  return 'bg-fail/15 text-fail-text line-through rounded-sm px-0.5'
+  return 'text-text-secondary'
 }
 
 function severityIcon(sev) { return sev === 'fail' ? '✗' : sev === 'warn' ? '⚠' : '✓' }
