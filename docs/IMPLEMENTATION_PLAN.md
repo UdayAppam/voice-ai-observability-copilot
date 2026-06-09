@@ -362,6 +362,43 @@ All passing as of 2026-06-09:
 - [x] Apply modal opens with section-focused editor (just the target section) by default; user edits ~500 chars instead of ~5000; whole-prompt edit available via toggle; word-level diff highlights (green=added) make AI's change visually scannable in both views
 - [x] Apply chain (preview → validate → apply → rollback) works end-to-end against test DB `reg-*` agents via `LocalAgentService`; same orchestration as live but writes to local `agents` table instead of PATCHing HL
 - [x] Lifecycle one-liner in Flywheel hero reads honestly: "{N} recs from {M} issues → {applied} applied ({%}) → {measured} measured ({%}) → {improved} improved ({%})" — issues are upstream context, not a funnel stage (different units; one issue ≠ one rec)
+- [x] Operational stage cards default to all-expanded (V4.x polish) — both `/flywheel` agency view and Agent Detail horizontal flywheel; `Collapse all` / `Expand all` mass toggles available
+
+### Phase 4.9 — Scaled-flywheel simulation (test DB demo state)
+
+Test DB seeded from 30 calls → 155 calls so the dashboard tells a credible at-scale story for the FSB reviewer.
+
+**Two scripts shipped** (`backend/scripts/`):
+- `simulate-scaled-flywheel.js` — generates 22 real-OpenAI seed analyses (4-5 distinct failure scenarios per agent) + 96 synthetic variations (direct DB insert with ±5pt KPI jitter, same failure mode, jittered timestamps). ~$0.50 in OpenAI cost, ~4 min runtime.
+- `simulate-apply-patterns.js` — picks the top 4 critical patterns, hits `preview-apply` (using V4.2 section-aware insertion), POSTs `/apply` via the real V4 flow (V4.8 LocalAgentService for `reg-*` agents), then injects 4 synthetic post-apply calls per applied rec and triggers `computePendingOutcomes`.
+
+**Final state on test DB (after both scripts)**:
+- 155 calls across 4 agents (FrontDoor 47, Grace 44, Maya 44, Receptionist 8) + post-apply variations
+- 46 recommendations (semantic dedup kept it tight: 21 "Follow Script Steps" occurrences clustered into 1 row, etc)
+- 8 applied (3 newly applied via real V4 flow + 5 from earlier session)
+- 7 measured (Δ delta computed against post-apply samples)
+- 5 significant improvements (Δ≥2 AND n≥3), 1 caught regression (-27.6 pts on "Confirm Appointment" — system correctly flagged for re-investigation)
+- Pass rate 51% (76/150 calls passed all KPI thresholds)
+- Cross-agent patterns: "Follow Script Steps" + "Capture Caller Information" each span 2 agents
+
+**What the simulation proves end-to-end**:
+- Semantic dedup at scale: 21 variations of "Capture Lead Data" / "Capture Caller Information" all merged into one cluster
+- V4.2 section-aware insertion: each apply targeted Script/Steps section appropriately
+- V4.2 context_consistency validator caught 1 real conflict, blocked the apply (correct behavior)
+- V4.3 measurement chain: every applied rec got `applied_prompt_version_id` set + post-apply calls measured automatically
+- V4.5 patterns rollup: cross-agent state ("Capture Caller Info" shows "applied 0/2 — needed on 2 agents") works at real scale
+- V4.7 inline diff highlighting + V4.8 LocalAgentService: section-focused editor + local-DB apply both verified
+
+**PM observations during the simulation**:
+- 1 apply was BLOCKED by `context_consistency` (Maya's "Summarize Next Steps"). Not a bug — the validator correctly identified that the proposed addition contradicted existing prompt instructions. This is the safety net working.
+- 1 measured outcome regressed (-27.6 pts). Realistic — not every fix improves things. The system surfaces it in the Measure narrative as "Regression: ... (re-investigate)" which is exactly what the customer should see.
+- "Biggest leak: Recommendations Applied (17%)" correctly identifies user-actionable bottleneck — 38 recs queued, 8 applied.
+
+**Reviewer-facing demo benefit**:
+- Funnel feels production-scale (74 issues, not 8)
+- Cross-agent patterns visibly cluster (not just one agent's bugs)
+- Measure narrative is rich: "5/7 improved (71%) — 5 significantly. Best: 'Follow Script Steps' +20.3 pts. Regression: 'Confirm Appointment' -27.6 pts"
+- All ~$0.50 in real OpenAI cost — reproducible on demand.
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200

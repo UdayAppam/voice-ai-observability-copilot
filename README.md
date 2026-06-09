@@ -246,5 +246,6 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | V4.6 section override | Verified end-to-end (force `persona` → LLM modifies Persona instead of `Information Gathering`) |
 | V4.7 section-focused editor | Builds clean; section-edit splices into full prompt before apply; auto-falls back to whole-prompt editor on section-mismatch |
 | V4.8 apply on test DB | Verified end-to-end on `reg-grace`: preview-apply OK, all 7 validators pass, apply succeeds with `record_prompt_version` step in timeline, agent.script updated locally, new `agent_prompt_versions` row written |
+| V4.9 scaled simulation | Test DB seeded to 155 calls + 8 applied + 7 measured + 5 significant improvements + 1 caught regression. 2 scripts in `backend/scripts/simulate-*.js`, ~$0.50 OpenAI, ~4 min runtime. Reproducible. |
 | All SPA routes | HTTP 200 |
 | All API endpoints | HTTP 200 |
