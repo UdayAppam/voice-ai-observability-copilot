@@ -24,8 +24,12 @@ router.get('/summary', (req, res, next) => {
     // Global aggregates
     const totalCalls = sumCalls(sinceISO)
     const prevTotalCalls = sumCalls(prevSinceISO, sinceISO)
-    const successRate = computeSuccessRate(sinceISO)
-    const prevSuccessRate = computeSuccessRate(prevSinceISO, sinceISO)
+    // V5.4 — conversionRate replaces the broken successRate. See audit in
+    // IMPLEMENTATION_PLAN Phase 5.4 for context.
+    const conversionRate = computeConversionRate(sinceISO)
+    const prevConversionRate = computeConversionRate(prevSinceISO, sinceISO)
+    const kpiPassRate = computeKpiPassRate(sinceISO)
+    const prevKpiPassRate = computeKpiPassRate(prevSinceISO, sinceISO)
     const avgDuration = computeAvgDuration(sinceISO)
     const prevAvgDuration = computeAvgDuration(prevSinceISO, sinceISO)
     const avgHealthScore = computeAvgHealthScore(sinceISO)
@@ -37,16 +41,24 @@ router.get('/summary', (req, res, next) => {
     // UI shows whichever is more meaningful (raw when % is null/capped).
     const hero = {
       totalCalls:     { value: totalCalls,     delta: pct(totalCalls,     prevTotalCalls),    deltaRaw: rawDelta(totalCalls,     prevTotalCalls) },
-      successRate:    { value: successRate,    delta: pct(successRate,    prevSuccessRate),   deltaRaw: rawDelta(successRate,    prevSuccessRate) },
+      conversionRate: { value: conversionRate, delta: pct(conversionRate, prevConversionRate),deltaRaw: rawDelta(conversionRate, prevConversionRate) },
+      kpiPassRate:    { value: kpiPassRate,    delta: pct(kpiPassRate,    prevKpiPassRate),   deltaRaw: rawDelta(kpiPassRate,    prevKpiPassRate) },
       avgDuration:    { value: avgDuration,    delta: pct(avgDuration,    prevAvgDuration),   deltaRaw: rawDelta(avgDuration,    prevAvgDuration) },
       avgHealthScore: { value: avgHealthScore, delta: pct(avgHealthScore, prevAvgHealthScore),deltaRaw: rawDelta(avgHealthScore, prevAvgHealthScore) },
       actionsRequired:{ value: actionsRequired,delta: pct(actionsRequired,prevActionsRequired),deltaRaw: rawDelta(actionsRequired,prevActionsRequired) },
+      // Back-compat alias so any old client still parses without 500-ing
+      // (frontend OverviewView is updated, but external readers may exist).
+      successRate:    { value: conversionRate, delta: pct(conversionRate, prevConversionRate),deltaRaw: rawDelta(conversionRate, prevConversionRate) },
     }
 
     res.json({
       window: { days, sinceISO },
       totalAgents: agents.length,
-      totalCallsAnalyzed: totalCalls,
+      // V5.4 — was returning totalCalls (every ingested call, even pending);
+      // now correctly counts only calls whose analysis completed. Both fields
+      // exposed so existing readers don't break.
+      totalCallsAnalyzed: computeAnalysedCount(sinceISO),
+      totalCallsIngested: totalCalls,
       avgHealthScore,
       hero,
       agents: agentSummaries,
@@ -77,19 +89,54 @@ function sumCalls(sinceISO, untilISO = null) {
   return db.prepare(sql).get(...args).n
 }
 
-function computeSuccessRate(sinceISO, untilISO = null) {
+// V5.4 — Conversion Rate: % of calls where a positive business outcome was
+// recorded. The original implementation hardcoded a single string `'booked'`
+// which matched 0 rows on real data (where outcomes look like
+// `meeting_booked`, `consultation_booked`, `appointment_booked`, etc.).
+// We now use a set of variants. Distinct from KPI Pass Rate (which measures
+// whether the AGENT did its job well via KPI scores) — both are legitimate
+// signals, see computeKpiPassRate below.
+const POSITIVE_OUTCOMES = new Set([
+  'booked', 'completed_booked',
+  'meeting_booked', 'appointment_booked', 'consultation_booked',
+  'trial_started', 'sale', 'sold', 'closed_won',
+  'qualified', 'lead_qualified',
+])
+function computeConversionRate(sinceISO, untilISO = null) {
   const where = untilISO
     ? 'WHERE c.call_timestamp >= ? AND c.call_timestamp < ?'
     : 'WHERE c.call_timestamp >= ?'
   const args = untilISO ? [sinceISO, untilISO] : [sinceISO]
+  const rows = db.prepare(`SELECT outcome FROM calls c ${where}`).all(...args)
+  if (rows.length === 0) return 0
+  const good = rows.reduce((n, r) => n + (POSITIVE_OUTCOMES.has(r.outcome) ? 1 : 0), 0)
+  return Math.round((good / rows.length) * 1000) / 10
+}
+
+// V5.4 — KPI Pass Rate: % of analysed calls where the AGENT met its KPI
+// thresholds. Different from Conversion Rate above. Both are useful.
+function computeKpiPassRate(sinceISO, untilISO = null) {
+  const where = untilISO
+    ? 'WHERE a.analyzed_at >= ? AND a.analyzed_at < ?'
+    : 'WHERE a.analyzed_at >= ?'
+  const args = untilISO ? [sinceISO, untilISO] : [sinceISO]
   const row = db.prepare(`
     SELECT
-      SUM(CASE WHEN c.outcome = 'booked' THEN 1 ELSE 0 END) as good,
+      SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as good,
       COUNT(*) as total
-    FROM calls c ${where}
+    FROM analyses a ${where}
   `).get(...args)
   if (!row.total) return 0
   return Math.round((row.good / row.total) * 1000) / 10
+}
+
+// V5.4 — count of CALLS WHOSE ANALYSIS HAS COMPLETED. Distinct from totalCalls
+// (which includes pending/failed analyses too). The original `totalCallsAnalyzed`
+// field misleadingly returned totalCalls — see audit.
+function computeAnalysedCount(sinceISO) {
+  return db.prepare(
+    `SELECT COUNT(*) as n FROM calls WHERE call_timestamp >= ? AND analysis_status = 'completed'`
+  ).get(sinceISO).n
 }
 
 function computeAvgDuration(sinceISO, untilISO = null) {

@@ -122,9 +122,11 @@
           </div>
         </div>
 
-        <!-- Row 1: hero metrics — deltaRaw passed alongside delta so the card
-             can show raw count when % would be absurd (V5 fix) -->
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <!-- Row 1: hero metrics (V5.4 — Conversion + KPI Pass Rate are two
+             different signals, both legitimate):
+             • Conversion Rate = business outcome ("did the call achieve its purpose?")
+             • KPI Pass Rate   = agent quality ("did the agent do its job?") -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <MetricHeroCard
             label="Total Calls"
             :value="summary.hero.totalCalls.value"
@@ -135,13 +137,23 @@
             tone="primary"
           />
           <MetricHeroCard
-            label="Success Rate"
-            :value="summary.hero.successRate.value"
-            :delta="summary.hero.successRate.delta"
-            :delta-raw="summary.hero.successRate.deltaRaw"
+            label="Conversion Rate"
+            :value="summary.hero.conversionRate?.value ?? summary.hero.successRate?.value ?? 0"
+            :delta="summary.hero.conversionRate?.delta ?? summary.hero.successRate?.delta"
+            :delta-raw="summary.hero.conversionRate?.deltaRaw ?? summary.hero.successRate?.deltaRaw"
             :window-days="rangeDays"
             icon="✓"
             tone="success"
+            format="percent"
+          />
+          <MetricHeroCard
+            label="KPI Pass Rate"
+            :value="summary.hero.kpiPassRate?.value ?? 0"
+            :delta="summary.hero.kpiPassRate?.delta"
+            :delta-raw="summary.hero.kpiPassRate?.deltaRaw"
+            :window-days="rangeDays"
+            icon="🎯"
+            tone="primary"
             format="percent"
           />
           <MetricHeroCard
@@ -160,7 +172,7 @@
             :delta="summary.hero.avgHealthScore.delta"
             :delta-raw="summary.hero.avgHealthScore.deltaRaw"
             :window-days="rangeDays"
-            icon="🎯"
+            icon="📊"
             tone="primary"
             format="score"
           />

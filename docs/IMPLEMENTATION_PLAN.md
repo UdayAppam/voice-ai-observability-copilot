@@ -502,6 +502,35 @@ PM critique of the `Sentiment Trend` widget surfaced 9 real product issues — t
 **Verified end-to-end on live DB**:
 - Backend returns 30-day trend with 27 data-days and 3 gaps; spike correctly identified June 8 (11 of 11 calls negative, +67 jump)
 - Bundle includes new strings: `Caller Mood Trend`, `Happy`, `Mixed`, `Upset`, `Worst day:`, `threshold:`
+
+### Phase 5.4 — Dashboard numbers audit + Conversion vs KPI Pass
+
+PM-grade observation from user: test DB showed `Success Rate: 0%` even though calls were measured and improved. Investigation surfaced 4 real issues across the hero metrics:
+
+**Bug 1 — Success Rate hardcoded to a single string**
+- `computeSuccessRate` (`backend/src/routes/dashboard.js`) used `WHERE c.outcome = 'booked'` literally — but real outcomes are variants like `meeting_booked`, `consultation_booked`, `appointment_booked`, `trial_started`. None matched exactly so the SUM always returned 0.
+- **Fix**: Replaced with `computeConversionRate` using a `POSITIVE_OUTCOMES` set of common variants. Test DB now reports 6% (9 of 151 — correct).
+
+**Bug 2 — `totalCallsAnalyzed` was misleading**
+- Field returned `totalCalls` (every ingested call, including pending/failed analyses). Label said "analyzed" but the value didn't filter on analysis_status.
+- **Fix**: New `computeAnalysedCount(sinceISO)` query filters `WHERE analysis_status = 'completed'`. Original `totalCalls` value exposed separately as `totalCallsIngested` for back-compat.
+
+**Bug 3 — Internal inconsistency: two definitions of "success" on the same product**
+- Overview hero showed "Success Rate" defined by `outcome = 'booked'` (business outcome).
+- Flywheel impact showed "Pass Rate" defined by `status = 'pass'` (KPI quality).
+- These are orthogonal signals — a call can be `lost` but agent did everything right, or `completed` with agent doing poorly. Both legitimate, but the dashboard called only one "success" without disambiguating.
+- **Fix**: Renamed the conversion metric to "Conversion Rate" (matches what it measures — business outcome) and added a new hero card "KPI Pass Rate" (matches the flywheel signal). Hero row now has 6 cards instead of 5; both signals visible side-by-side.
+
+**Bug 4 — Naming**
+- "Success Rate" was ambiguous about what counts as success. "Conversion Rate" + "KPI Pass Rate" are precise.
+
+**Result on test DB (was → now)**:
+- `successRate: 0%` → `conversionRate: 6%` (9 of 151 calls had positive business outcomes)
+- New `kpiPassRate: 50.7%` (matches flywheel impact's pass rate — internally consistent)
+- `totalCallsAnalyzed: 151` (was just `totalCalls`; now reflects actual analysed count via `analysis_status='completed'`)
+- Back-compat: `hero.successRate` still returned (aliased to `conversionRate`) so any external reader still parses.
+
+**Files**: `backend/src/routes/dashboard.js`, `frontend/src/views/OverviewView.vue` (6 hero cards instead of 5; tweaked icons so two different "score" cards aren't both 🎯).
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200
