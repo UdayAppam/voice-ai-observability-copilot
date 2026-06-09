@@ -246,7 +246,7 @@ Use Actions live inside `analyses.use_actions_json` (they're per-call). Their li
 | Route | Purpose |
 |---|---|
 | `/` | Overview — hero metrics, MonitorAnalyzeHero, FlywheelSnapshotTile, AgentStatusStrip, KPI radar, failure reasons, sentiment trend, calls needing attention |
-| `/flywheel` | Validation Funnel + 5 stage cards (click to expand for what/why/evidence/action) + impact summary |
+| `/flywheel` | Validation Funnel + 5 stage cards (all expanded by default (Collapse all toggle); each card toggles independently) + impact summary |
 | `/patterns` | Cross-agent failure pattern cards w/ lifecycle bars (filter by status + min-agents, URL-synced) |
 | `/actions` | Use Action queue w/ 4-tab filter + verb buttons (optimistic UI) |
 | `/calls` | All calls list |

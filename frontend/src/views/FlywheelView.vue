@@ -244,8 +244,26 @@
               />
 
               <div>
-                <div class="text-xs uppercase tracking-wide text-text-muted mb-2">
-                  Operational stages — click any card to expand
+                <div class="flex items-baseline justify-between mb-2">
+                  <div class="text-xs uppercase tracking-wide text-text-muted">
+                    Operational stages — all expanded by default · click any card to collapse
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <button
+                      v-if="!allCollapsed"
+                      class="text-[11px] text-text-muted hover:text-text-primary"
+                      @click="collapseAll"
+                    >
+                      Collapse all
+                    </button>
+                    <button
+                      v-if="!allExpanded"
+                      class="text-[11px] text-text-muted hover:text-text-primary"
+                      @click="expandAll"
+                    >
+                      Expand all
+                    </button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                   <FlywheelStageCard
@@ -257,9 +275,9 @@
                     :tone="stageTones[key]"
                     :health-badge="healthBadge(key)"
                     :narrative="stage"
-                    :expanded="expandedStage === key"
-                    @expand="expandedStage = key"
-                    @collapse="expandedStage = null"
+                    :expanded="isExpanded(key)"
+                    @expand="expandStage(key)"
+                    @collapse="collapseStage(key)"
                   />
                 </div>
               </div>
@@ -295,8 +313,29 @@ const windowMode = ref('window')
 const data       = ref(null)
 const loading    = ref(false)
 const error      = ref(null)
-const expandedStage = ref('score')
+// All 5 stage cards expanded by default — PM call: a flywheel page is a
+// scanning/comparing surface, not an investigate-one-stage drill-down.
+// Set-based so each card toggles independently; "Expand/Collapse all" lets
+// the user mass-toggle.
+const STAGE_KEYS = ['ingest', 'score', 'recommend', 'apply', 'measure']
+const expandedStages = ref(new Set(STAGE_KEYS))
 const drilledIn  = ref(false)   // detail collapsed by default
+
+function isExpanded(key) { return expandedStages.value.has(key) }
+function expandStage(key) {
+  const next = new Set(expandedStages.value)
+  next.add(key)
+  expandedStages.value = next
+}
+function collapseStage(key) {
+  const next = new Set(expandedStages.value)
+  next.delete(key)
+  expandedStages.value = next
+}
+function expandAll()   { expandedStages.value = new Set(STAGE_KEYS) }
+function collapseAll() { expandedStages.value = new Set() }
+const allExpanded  = computed(() => expandedStages.value.size === STAGE_KEYS.length)
+const allCollapsed = computed(() => expandedStages.value.size === 0)
 
 async function reload() {
   loading.value = true
