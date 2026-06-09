@@ -24,7 +24,11 @@
           Action Queue
         </h1>
         <p class="text-xs text-text-secondary mt-0.5">
-          Moments in calls where the AI flagged human follow-up — resolve, dismiss, or escalate
+          <strong class="text-text-primary">Operational triage queue</strong> — moments the AI flagged for human follow-up.
+          Resolving these doesn't change the agent itself; for agent improvement see
+          <RouterLink to="/patterns" class="text-accent-primary-text hover:underline">Patterns</RouterLink>.
+          <span class="text-text-muted">·</span>
+          <span class="text-text-muted">Escalate 3+ times for the same action type and the system auto-creates a Patterns recommendation.</span>
         </p>
       </div>
 

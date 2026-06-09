@@ -1,10 +1,18 @@
 const express = require('express')
+const crypto = require('crypto')
 const db = require('../db/database')
+const logger = require('../logger')
 
 const router = express.Router()
 
 const VALID_VERBS = { resolve: 'resolved', dismiss: 'dismissed', escalate: 'escalated' }
 const VALID_FILTERS = ['pending', 'resolved', 'dismissed', 'escalated', 'all']
+
+// V5 — when the SAME (agent, action_type) gets escalated this many times within
+// the lookback window, auto-spawn a Patterns-visible recommendation so the
+// operational pain becomes a flywheel-improvement signal.
+const ESCALATION_REC_THRESHOLD = 3
+const ESCALATION_LOOKBACK_DAYS = 30
 
 // GET /api/actions?status=pending&agentId=…&limit=100
 // Flattens every Use Action out of every analysis and overlays its lifecycle
@@ -121,6 +129,13 @@ router.post('/:callId/:turnIndex/:actionType/:verb', (req, res, next) => {
                       updated_at = datetime('now')
     `).run(callId, turnIdx, actionType, newStatus, note, updatedBy)
 
+    // V5 — escalation → recommendation auto-spawn. Closes the loop between
+    // "human keeps escalating this action type" → "agent prompt fix proposal".
+    let spawnedRec = null
+    if (verb === 'escalate') {
+      spawnedRec = _maybeSpawnEscalationRec(callId, actionType)
+    }
+
     res.json({
       callId,
       turnIndex: turnIdx,
@@ -128,10 +143,81 @@ router.post('/:callId/:turnIndex/:actionType/:verb', (req, res, next) => {
       status: newStatus,
       note,
       updatedAt: new Date().toISOString(),
+      spawnedRec,  // null when not enough escalations yet
     })
   } catch (err) {
     next(err)
   }
 })
+
+// ── V5: escalation → recommendation ──────────────────────────────────
+//
+// Called after each escalate verb. Counts escalations of the SAME
+// (agent_id, action_type) in the lookback window. If ≥ threshold AND no
+// existing rec for this pattern, creates a new active recommendation so
+// the operational pain becomes a Patterns-visible improvement signal.
+//
+// Returns the spawned rec (or null if not triggered) so the UI can show
+// a "we created a recommendation from this" confirmation.
+function _maybeSpawnEscalationRec(callId, actionType) {
+  // Find this call's agent_id
+  const call = db.prepare('SELECT agent_id FROM calls WHERE id = ?').get(callId)
+  if (!call?.agent_id) return null
+  const agentId = call.agent_id
+
+  // Count escalations of this (agent_id, action_type) in the lookback window
+  const sinceISO = new Date(Date.now() - ESCALATION_LOOKBACK_DAYS * 86400e3).toISOString()
+  const count = db.prepare(`
+    SELECT COUNT(*) as n
+    FROM use_action_statuses uas
+    JOIN calls c ON c.id = uas.call_id
+    WHERE c.agent_id = ?
+      AND uas.action_type = ?
+      AND uas.status = 'escalated'
+      AND uas.updated_at >= ?
+  `).get(agentId, actionType, sinceISO).n
+
+  if (count < ESCALATION_REC_THRESHOLD) {
+    logger.info({ agentId, actionType, count, threshold: ESCALATION_REC_THRESHOLD },
+      'escalation tracked — below auto-spawn threshold')
+    return null
+  }
+
+  // Check if we already have an active/applied rec for this escalation pattern
+  // (cluster_key matches if we've spawned before for this same pattern)
+  const clusterKey = `escalation pattern ${actionType}`.toLowerCase().slice(0, 120)
+  const existing = db.prepare(
+    `SELECT id, status FROM recommendations WHERE agent_id = ? AND cluster_key = ?`
+  ).get(agentId, clusterKey)
+  if (existing) {
+    // Bump occurrence_count + reset to active if it was previously dismissed/applied
+    db.prepare(`
+      UPDATE recommendations
+        SET occurrence_count = occurrence_count + 1,
+            last_seen_at = datetime('now'),
+            status = CASE WHEN status='dismissed' THEN 'active' ELSE status END
+        WHERE id = ?
+    `).run(existing.id)
+    logger.info({ agentId, actionType, recId: existing.id }, 'escalation rec — bumped existing')
+    return { id: existing.id, status: 'updated', count }
+  }
+
+  // Spawn a new recommendation
+  const recId = crypto.randomUUID()
+  const title = `Reduce recurring "${actionType}" escalations`
+  const detail = `Humans have escalated "${actionType}" actions ${count} times for this agent in the last ${ESCALATION_LOOKBACK_DAYS} days. The AI keeps flagging these moments but the human keeps having to step in — suggests the agent prompt could be improved to handle this case directly.`
+  const suggestedChange = `Review the most recent escalated calls for "${actionType}" patterns and add explicit handling instructions to the agent's script (e.g., escalation criteria, alternative phrasing, scope clarification).`
+
+  db.prepare(`
+    INSERT INTO recommendations
+      (id, agent_id, cluster_key, title, severity, type, detail, suggested_change,
+       occurrence_count, status, first_seen_at, last_seen_at)
+    VALUES (?, ?, ?, ?, 'warning', 'escalation_pattern', ?, ?, ?, 'active',
+            datetime('now'), datetime('now'))
+  `).run(recId, agentId, clusterKey, title, detail, suggestedChange, count)
+
+  logger.info({ agentId, actionType, recId, count }, 'escalation rec — spawned new')
+  return { id: recId, status: 'spawned', count, title }
+}
 
 module.exports = router

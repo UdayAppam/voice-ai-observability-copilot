@@ -122,12 +122,14 @@
           </div>
         </div>
 
-        <!-- Row 1: hero metrics -->
+        <!-- Row 1: hero metrics — deltaRaw passed alongside delta so the card
+             can show raw count when % would be absurd (V5 fix) -->
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <MetricHeroCard
             label="Total Calls"
             :value="summary.hero.totalCalls.value"
             :delta="summary.hero.totalCalls.delta"
+            :delta-raw="summary.hero.totalCalls.deltaRaw"
             icon="📞"
             tone="primary"
           />
@@ -135,6 +137,7 @@
             label="Success Rate"
             :value="summary.hero.successRate.value"
             :delta="summary.hero.successRate.delta"
+            :delta-raw="summary.hero.successRate.deltaRaw"
             icon="✓"
             tone="success"
             format="percent"
@@ -143,6 +146,7 @@
             label="Avg Call Duration"
             :value="summary.hero.avgDuration.value"
             :delta="summary.hero.avgDuration.delta"
+            :delta-raw="summary.hero.avgDuration.deltaRaw"
             icon="⏱"
             tone="secondary"
             format="duration"
@@ -151,6 +155,7 @@
             label="KPI Avg"
             :value="summary.hero.avgHealthScore.value"
             :delta="summary.hero.avgHealthScore.delta"
+            :delta-raw="summary.hero.avgHealthScore.deltaRaw"
             icon="🎯"
             tone="primary"
             format="score"
@@ -159,6 +164,7 @@
             label="Actions Required"
             :value="summary.hero.actionsRequired.value"
             :delta="summary.hero.actionsRequired.delta"
+            :delta-raw="summary.hero.actionsRequired.deltaRaw"
             icon="⚠"
             tone="fail"
             :invert-delta="true"

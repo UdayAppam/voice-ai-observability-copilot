@@ -399,6 +399,39 @@ Test DB seeded from 30 calls → 155 calls so the dashboard tells a credible at-
 - Cross-agent patterns visibly cluster (not just one agent's bugs)
 - Measure narrative is rich: "5/7 improved (71%) — 5 significantly. Best: 'Follow Script Steps' +20.3 pts. Regression: 'Confirm Appointment' -27.6 pts"
 - All ~$0.50 in real OpenAI cost — reproducible on demand.
+
+### Phase 5.0 — Actions ↔ Flywheel connection + delta-display fix
+
+PM-grade observation from user: dashboard showed `actionsRequired: 67 (6600%)` and resolving 67 actions manually didn't move the flywheel. Two real product gaps:
+
+**Fix 1: Period-over-period % capping** (`backend/src/routes/dashboard.js`)
+- `pct()` now returns `null` when prior period < 5 (tiny base makes % meaningless — e.g. 1→67 reads as 6600% which is mathematically right but visually absurd)
+- New `rawDelta(now, prev)` helper returns the absolute change
+- Every hero metric now exposes both `delta` (%) and `deltaRaw` (count)
+- `MetricHeroCard.vue` chooses: shows raw count when `delta` is null OR `|delta| > 500`; tooltip explains why
+
+**Fix 2: Actions ↔ Flywheel disconnect** — Actions were purely operational (resolve/dismiss/escalate as a status overlay) with NO causal link to agent improvement. Resolving them was bookkeeping. New escalation-pattern auto-spawn closes the loop:
+
+- `routes/actions.js POST /:callId/:turnIndex/:actionType/escalate` now calls `_maybeSpawnEscalationRec(callId, actionType)` after writing the status
+- Counts escalations of the SAME `(agent_id, action_type)` in the last 30 days
+- When count ≥ 3 AND no existing rec for that pattern → creates a new active recommendation:
+  - `title`: `"Reduce recurring '{actionType}' escalations"`
+  - `severity`: `warning`
+  - `type`: `escalation_pattern`
+  - `cluster_key`: `escalation pattern {actionType}` (stable, so subsequent escalations bump occurrence_count instead of creating duplicates)
+  - `detail` + `suggested_change`: explain the pattern and direct user to investigate
+- Auto-spawned rec flows naturally into Patterns view + Apply flow → flywheel closes
+- Response now returns `spawnedRec` so the UI can surface a confirmation
+
+**Fix 3: Honest labeling** (`frontend/src/views/ActionsView.vue`)
+- Subtitle now reads: "**Operational triage queue** — moments the AI flagged for human follow-up. Resolving these doesn't change the agent itself; for agent improvement see [Patterns]. · Escalate 3+ times for the same action type and the system auto-creates a Patterns recommendation."
+- Sets the right expectation upfront — resolve = ops bookkeeping, escalate = trigger improvement
+
+**Verified end-to-end** on test DB (3 escalations of `script_training` on different reg-grace calls):
+- 1st + 2nd escalation: `spawnedRec: null` (below threshold)
+- 3rd escalation: `spawnedRec: { id, status: 'spawned', count: 3, title: 'Reduce recurring "script_training" escalations' }`
+- New `recommendations` row with type=`escalation_pattern`, severity=warning, occurrence_count=3
+- Visible immediately in `/patterns` page; can be applied via real V4 flow
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200

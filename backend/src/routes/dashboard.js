@@ -30,13 +30,14 @@ router.get('/summary', (req, res, next) => {
     const actionsRequired = countActionsRequired(sinceISO)
     const prevActionsRequired = countActionsRequired(prevSinceISO, sinceISO)
 
-    // Hero metrics with trend deltas
+    // Hero metrics with trend deltas. `delta` is %; `deltaRaw` is absolute.
+    // UI shows whichever is more meaningful (raw when % is null/capped).
     const hero = {
-      totalCalls:     { value: totalCalls,     delta: pct(totalCalls,     prevTotalCalls) },
-      successRate:    { value: successRate,    delta: pct(successRate,    prevSuccessRate) },
-      avgDuration:    { value: avgDuration,    delta: pct(avgDuration,    prevAvgDuration) },
-      avgHealthScore: { value: avgHealthScore, delta: pct(avgHealthScore, prevAvgHealthScore) },
-      actionsRequired:{ value: actionsRequired,delta: pct(actionsRequired,prevActionsRequired) },
+      totalCalls:     { value: totalCalls,     delta: pct(totalCalls,     prevTotalCalls),    deltaRaw: rawDelta(totalCalls,     prevTotalCalls) },
+      successRate:    { value: successRate,    delta: pct(successRate,    prevSuccessRate),   deltaRaw: rawDelta(successRate,    prevSuccessRate) },
+      avgDuration:    { value: avgDuration,    delta: pct(avgDuration,    prevAvgDuration),   deltaRaw: rawDelta(avgDuration,    prevAvgDuration) },
+      avgHealthScore: { value: avgHealthScore, delta: pct(avgHealthScore, prevAvgHealthScore),deltaRaw: rawDelta(avgHealthScore, prevAvgHealthScore) },
+      actionsRequired:{ value: actionsRequired,delta: pct(actionsRequired,prevActionsRequired),deltaRaw: rawDelta(actionsRequired,prevActionsRequired) },
     }
 
     res.json({
@@ -60,11 +61,7 @@ router.get('/summary', (req, res, next) => {
 })
 
 // ─── helpers ──────────────────────────────────────────────────────────────
-
-function pct(now, prev) {
-  if (!prev || prev === 0) return null
-  return Math.round(((now - prev) / prev) * 1000) / 10  // 1 decimal
-}
+// pct() + rawDelta() are defined further down (see "Period-over-period…" block).
 
 function sumCalls(sinceISO, untilISO = null) {
   const sql = untilISO
@@ -105,6 +102,22 @@ function computeAvgHealthScore(sinceISO, untilISO = null) {
   const args = untilISO ? [sinceISO, untilISO] : [sinceISO]
   const row = db.prepare(`SELECT AVG(overall_score) as avg FROM analyses a ${where}`).get(...args)
   return Math.round(row.avg || 0)
+}
+
+// Period-over-period % change. Returns null when prior is too small
+// (< 5) to produce a meaningful percentage — a 1→67 jump reads as 6600%
+// which is mathematically right but visually absurd. UI falls back to deltaRaw.
+function pct(now, prev) {
+  if (!prev || prev === 0) return null
+  if (prev < 5) return null
+  return Math.round(((now - prev) / prev) * 1000) / 10
+}
+
+// Raw absolute change — meaningful regardless of base size. Always returned
+// alongside `delta` so the UI can pick whichever is more informative.
+function rawDelta(now, prev) {
+  if (prev === null || prev === undefined) return null
+  return now - prev
 }
 
 function countActionsRequired(sinceISO, untilISO = null) {
