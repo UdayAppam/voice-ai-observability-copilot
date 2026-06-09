@@ -94,20 +94,41 @@
                 {{ heroMetric.headline }}
               </div>
 
-              <!-- ONE-LINE LIFECYCLE STORY — the flywheel in a sentence -->
+              <!-- ONE-LINE LIFECYCLE STORY (Option B) — upstream context, then true funnel
+                   "53 recs from 28 issues → 9 applied (17%) → 1 measured (11%) → 0 improved"
+                   Issues are context (1:N relationship to recs), not a funnel stage. -->
               <div class="mt-4 pt-4 border-t border-border-subtle">
                 <div class="text-xs text-text-muted mb-2">Lifecycle this period</div>
-                <div class="flex items-center gap-1 text-sm font-medium flex-wrap">
-                  <template v-for="(step, i) in lifecycleStory" :key="i">
-                    <span :class="step.toneClass">
-                      <span class="font-bold font-mono">{{ step.value }}</span>
-                      <span class="text-text-secondary ml-1">{{ step.label }}</span>
-                    </span>
+                <div class="flex items-center gap-x-1 gap-y-1 text-sm font-medium flex-wrap">
+                  <!-- Upstream context: how many recs came from how many issues -->
+                  <span class="inline-flex items-baseline">
+                    <span class="font-bold font-mono text-text-primary">{{ lifecycleStory.upstream.recsCount }}</span>
+                    <span class="text-text-secondary ml-1">recs from</span>
+                    <span class="font-bold font-mono text-text-primary ml-1">{{ lifecycleStory.upstream.issuesCount }}</span>
+                    <span class="text-text-secondary ml-1">issues</span>
+                  </span>
+                  <!-- True funnel: Generated → Applied → Measured → Improved, with conversion% -->
+                  <template v-for="(step, i) in lifecycleStory.funnel" :key="i">
                     <span
-                      v-if="i < lifecycleStory.length - 1"
+                      v-if="i > 0"
                       class="text-text-muted px-1"
                     >→</span>
+                    <span
+                      v-if="i > 0"
+                      :class="step.toneClass"
+                      class="inline-flex items-baseline"
+                    >
+                      <span class="font-bold font-mono">{{ step.value }}</span>
+                      <span class="text-text-secondary ml-1">{{ step.label }}</span>
+                      <span
+                        v-if="step.conversionPct !== null"
+                        class="text-text-muted text-xs ml-1"
+                      >({{ step.conversionPct }}%)</span>
+                    </span>
                   </template>
+                </div>
+                <div class="text-[11px] text-text-muted mt-2">
+                  {{ yieldRatio }} recs per issue avg · arrows show conversion% to next stage
                 </div>
               </div>
 
@@ -366,24 +387,44 @@ const heroMetric = computed(() => {
   }
 })
 
-// ── HERO 1: one-line lifecycle story ───────────────────────────────────
-// Compresses the 5-stage funnel into a sentence: 43 issues → 41 recs → 2 applied → 0 measured → 0 improved
+// ── HERO 1: one-line lifecycle story (Option B framing) ────────────────
+// Issues are upstream context, not a funnel stage — "53 recs from 28 issues"
+// because one failed call typically generates multiple recs (1:N), so an
+// arrow between them implies a conversion that doesn't exist. The TRUE
+// funnel starts at Generated → Applied → Measured → Improved, with each
+// transition annotated with its real conversion %.
 const lifecycleStory = computed(() => {
   const f = Object.fromEntries(data.value.funnel.map((s) => [s.stage, s.count]))
   const leak = data.value.biggestLeak?.stage
   const isLeak = (stageName) => leak === stageName
-  return [
-    { value: f['Issues Detected'] || 0,           label: 'issues',
-      toneClass: 'text-text-primary' },
-    { value: f['Recommendations Generated'] || 0, label: 'generated',
-      toneClass: isLeak('Recommendations Generated') ? 'text-fail-text' : 'text-text-primary' },
-    { value: f['Recommendations Applied'] || 0,   label: 'applied',
-      toneClass: isLeak('Recommendations Applied') ? 'text-fail-text' : 'text-text-primary' },
-    { value: f['Outcomes Measured'] || 0,         label: 'measured',
-      toneClass: isLeak('Outcomes Measured') ? 'text-fail-text' : 'text-text-primary' },
-    { value: f['Improved Scores'] || 0,           label: 'improved',
-      toneClass: (f['Improved Scores'] || 0) > 0 ? 'text-pass' : 'text-text-muted' },
-  ]
+  const pct = (n, prev) => (prev > 0 ? Math.round((n / prev) * 100) : null)
+  const issues    = f['Issues Detected']           || 0
+  const generated = f['Recommendations Generated'] || 0
+  const applied   = f['Recommendations Applied']   || 0
+  const measured  = f['Outcomes Measured']         || 0
+  const improved  = f['Improved Scores']           || 0
+  return {
+    upstream: { recsCount: generated, issuesCount: issues },
+    funnel: [
+      { value: generated, label: 'generated', conversionPct: null,
+        toneClass: 'text-text-primary' },
+      { value: applied,   label: 'applied',   conversionPct: pct(applied, generated),
+        toneClass: isLeak('Recommendations Applied') ? 'text-fail-text' : 'text-text-primary' },
+      { value: measured,  label: 'measured',  conversionPct: pct(measured, applied),
+        toneClass: isLeak('Outcomes Measured') ? 'text-fail-text' : 'text-text-primary' },
+      { value: improved,  label: 'improved',  conversionPct: pct(improved, measured),
+        toneClass: improved > 0 ? 'text-pass' : 'text-text-muted' },
+    ],
+  }
+})
+
+// Recs-per-issue ratio shown as the small explainer under the lifecycle row,
+// makes the 1:N relationship between issues and recommendations explicit so the
+// "53 from 28" reading lands instead of looking like broken math.
+const yieldRatio = computed(() => {
+  const { recsCount, issuesCount } = lifecycleStory.value.upstream
+  if (!issuesCount) return '—'
+  return (Math.round((recsCount / issuesCount) * 100) / 100).toFixed(2)
 })
 
 const hero1Border = computed(() => {

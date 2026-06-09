@@ -361,6 +361,7 @@ All passing as of 2026-06-09:
 - [x] Apply modal shows the full section list with the AI-picked target highlighted; user can override the section via dropdown; section-only before/after diff renders above the full-prompt diff
 - [x] Apply modal opens with section-focused editor (just the target section) by default; user edits ~500 chars instead of ~5000; whole-prompt edit available via toggle; word-level diff highlights (green=added) make AI's change visually scannable in both views
 - [x] Apply chain (preview → validate → apply → rollback) works end-to-end against test DB `reg-*` agents via `LocalAgentService`; same orchestration as live but writes to local `agents` table instead of PATCHing HL
+- [x] Lifecycle one-liner in Flywheel hero reads honestly: "{N} recs from {M} issues → {applied} applied ({%}) → {measured} measured ({%}) → {improved} improved ({%})" — issues are upstream context, not a funnel stage (different units; one issue ≠ one rec)
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200
