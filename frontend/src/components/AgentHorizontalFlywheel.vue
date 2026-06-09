@@ -48,28 +48,49 @@
     >
       Couldn't load flywheel narrative: {{ error.message }}
     </div>
-    <div
-      v-else-if="narratives"
-      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2"
-    >
-      <FlywheelStageCard
-        v-for="(stage, key, idx) in narratives"
-        :key="key"
-        :stage-number="idx + 1"
-        :name="stageNames[key]"
-        :icon="stageIcons[key]"
-        :tone="stageTones[key]"
-        :narrative="stage"
-        :expanded="expanded === key"
-        @expand="expanded = key"
-        @collapse="expanded = null"
-      />
+    <div v-else-if="narratives">
+      <!-- Mass-toggle controls — mirrors the /flywheel page behaviour so the
+           per-agent flywheel feels consistent. Only shown when there's
+           something to toggle. -->
+      <div
+        v-if="!allCollapsed || !allExpanded"
+        class="flex justify-end mb-1.5"
+      >
+        <button
+          v-if="!allCollapsed"
+          class="text-[10px] text-text-muted hover:text-text-primary"
+          @click="collapseAll"
+        >
+          Collapse all
+        </button>
+        <button
+          v-if="!allExpanded"
+          class="text-[10px] text-text-muted hover:text-text-primary ml-3"
+          @click="expandAll"
+        >
+          Expand all
+        </button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+        <FlywheelStageCard
+          v-for="(stage, key, idx) in narratives"
+          :key="key"
+          :stage-number="idx + 1"
+          :name="stageNames[key]"
+          :icon="stageIcons[key]"
+          :tone="stageTones[key]"
+          :narrative="stage"
+          :expanded="isExpanded(key)"
+          @expand="expandStage(key)"
+          @collapse="collapseStage(key)"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import client from '@/api/client'
 import FlywheelStageCard from '@/components/FlywheelStageCard.vue'
@@ -88,7 +109,25 @@ const days       = ref(30)
 const narratives = ref(null)
 const loading    = ref(false)
 const error      = ref(null)
-const expanded   = ref(null)
+
+// All 5 stage cards expanded by default — consistent with /flywheel page.
+// Set-based so each card toggles independently; mass-toggle helpers below.
+const STAGE_KEYS = ['ingest', 'score', 'recommend', 'apply', 'measure']
+const expandedStages = ref(new Set(STAGE_KEYS))
+
+function isExpanded(key) { return expandedStages.value.has(key) }
+function expandStage(key) {
+  const next = new Set(expandedStages.value); next.add(key)
+  expandedStages.value = next
+}
+function collapseStage(key) {
+  const next = new Set(expandedStages.value); next.delete(key)
+  expandedStages.value = next
+}
+function expandAll()   { expandedStages.value = new Set(STAGE_KEYS) }
+function collapseAll() { expandedStages.value = new Set() }
+const allExpanded  = computed(() => expandedStages.value.size === STAGE_KEYS.length)
+const allCollapsed = computed(() => expandedStages.value.size === 0)
 
 async function reload() {
   if (!props.agentId) return
