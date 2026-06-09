@@ -235,7 +235,14 @@
         <!-- Row 4: failure reasons + sentiment trend -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <FailureReasonsList :items="summary.topFailureReasons" />
-          <SentimentTrend :trend="summary.sentimentTrend" />
+          <SentimentTrend
+            :trend="summary.sentimentTrend"
+            :spike="summary.sentimentSpike"
+            :thresholds="summary.sentimentBucketThresholds"
+            :agents="agentList"
+            :current-agent-id="sentimentAgentFilter"
+            @filter-change="onSentimentAgentChange"
+          />
         </div>
 
         <!-- Row 5: calls needing attention + recommendations -->
@@ -282,6 +289,10 @@ const rangeDays = ref(30)
 const summary = ref(null)
 const flywheelSummary = ref(null)
 const loading = ref(false)
+// V5.3 — per-agent sentiment filter (null = all agents)
+const sentimentAgentFilter = ref(null)
+// Dropdown options come from the agents list we already have in `summary.agents`
+const agentList = computed(() => (summary.value?.agents || []).map((a) => ({ id: a.id, name: a.name })))
 
 // First-time welcome card — persists dismissal in localStorage
 const WELCOME_DISMISSED_KEY = 'copilot.welcomeDismissed'
@@ -320,8 +331,10 @@ async function reload() {
   loading.value = true
   error.value = null
   try {
+    const params = { days: rangeDays.value }
+    if (sentimentAgentFilter.value) params.sentimentAgentId = sentimentAgentFilter.value
     const [dashboardRes, flywheelRes] = await Promise.all([
-      client.get('/dashboard/summary', { params: { days: rangeDays.value } }),
+      client.get('/dashboard/summary', { params }),
       client.get('/flywheel/summary',  { params: { days: rangeDays.value } }),
     ])
     summary.value = dashboardRes.data
@@ -333,6 +346,12 @@ async function reload() {
   } finally {
     loading.value = false
   }
+}
+
+// V5.3 — sentiment trend dropdown picked an agent (or 'All agents' = null)
+function onSentimentAgentChange(agentId) {
+  sentimentAgentFilter.value = agentId
+  reload()
 }
 
 onMounted(reload)

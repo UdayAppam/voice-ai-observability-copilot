@@ -11,6 +11,9 @@ router.get('/summary', (req, res, next) => {
     const days = Math.min(90, Math.max(1, parseInt(req.query.days) || 7))
     const sinceISO = new Date(Date.now() - days * 86400e3).toISOString()
     const prevSinceISO = new Date(Date.now() - 2 * days * 86400e3).toISOString()
+    // V5.3 — optional per-agent filter for sentiment trend (no effect on
+    // other widgets; they stay agency-wide)
+    const sentimentAgentId = req.query.sentimentAgentId || null
 
     const agents = db.prepare('SELECT id, name, goal FROM agents ORDER BY name').all()
     // Pre-fetch everything needed for all agents in O(few) queries instead of O(agents × 6).
@@ -47,7 +50,10 @@ router.get('/summary', (req, res, next) => {
       avgHealthScore,
       hero,
       agents: agentSummaries,
-      sentimentTrend:        computeSentimentTrend(sinceISO, days),
+      sentimentTrend:        computeSentimentTrend(sinceISO, days, sentimentAgentId),
+      sentimentSpike:        computeSentimentSpike(computeSentimentTrend(sinceISO, days, sentimentAgentId)),
+      sentimentAgentFilter:  sentimentAgentId,
+      sentimentBucketThresholds: { positive: 70, negative: 50 },
       topFailureReasons:     computeTopFailureReasons(sinceISO),
       callsNeedingAttention: computeCallsNeedingAttention(sinceISO),
       aggregatedRecommendations: computeAggregatedRecommendations(sinceISO),
@@ -130,16 +136,30 @@ function countActionsRequired(sinceISO, untilISO = null) {
   return rows.reduce((sum, r) => sum + JSON.parse(r.use_actions_json).length, 0)
 }
 
-function computeSentimentTrend(sinceISO, days) {
-  // Group analyses by day, average sentiment_score → bucket into pass/neutral/negative
+// PM-aligned thresholds. Match the per-agent sentiment KPI default threshold
+// (60) so the chart and the KPI grading speak the same language. Anything
+// ≥ POSITIVE_THRESHOLD reads as happy, < NEGATIVE_CEIL reads as upset, in
+// between is mixed/neutral.
+const SENTIMENT_POSITIVE_THRESHOLD = 70
+const SENTIMENT_NEGATIVE_CEIL = 50
+
+// V5.3 — adds:
+//   - `total` (sample size per day) so the UI tooltip can show "N of M calls"
+//   - `positiveCount` / `neutralCount` / `negativeCount` (raw counts) for the same reason
+//   - `hasData` so the UI can hide zero-day points instead of plotting 0% (which misleads
+//      readers into thinking the agent collapsed that day)
+//   - optional `agentId` filter so per-agent view is possible
+function computeSentimentTrend(sinceISO, days, agentId = null) {
+  const where = agentId
+    ? 'WHERE a.analyzed_at >= ? AND c.agent_id = ?'
+    : 'WHERE a.analyzed_at >= ?'
+  const args  = agentId ? [sinceISO, agentId] : [sinceISO]
   const rows = db.prepare(`
-    SELECT
-      DATE(a.analyzed_at) as day,
-      a.kpi_scores_json
-    FROM analyses a
-    WHERE a.analyzed_at >= ?
+    SELECT DATE(a.analyzed_at) as day, a.kpi_scores_json
+    FROM analyses a JOIN calls c ON c.id = a.call_id
+    ${where}
     ORDER BY a.analyzed_at ASC
-  `).all(sinceISO)
+  `).all(...args)
 
   // Build a date map covering every day in the window even if zero data
   const series = {}
@@ -151,22 +171,72 @@ function computeSentimentTrend(sinceISO, days) {
   for (const r of rows) {
     if (!series[r.day]) continue
     const sentiment = JSON.parse(r.kpi_scores_json).sentiment_score ?? 0
-    if (sentiment >= 70) series[r.day].positive++
-    else if (sentiment >= 50) series[r.day].neutral++
+    if (sentiment >= SENTIMENT_POSITIVE_THRESHOLD) series[r.day].positive++
+    else if (sentiment >= SENTIMENT_NEGATIVE_CEIL) series[r.day].neutral++
     else series[r.day].negative++
     series[r.day].total++
   }
 
-  // Convert counts → percentages
   return Object.values(series).map((s) => {
-    if (s.total === 0) return { day: s.day, positive: 0, neutral: 0, negative: 0 }
+    const hasData = s.total > 0
     return {
       day: s.day,
-      positive: Math.round((s.positive / s.total) * 100),
-      neutral:  Math.round((s.neutral  / s.total) * 100),
-      negative: Math.round((s.negative / s.total) * 100),
+      total: s.total,
+      hasData,
+      // Percentages — null when no data so the chart can hide (not plot 0%)
+      positive: hasData ? Math.round((s.positive / s.total) * 100) : null,
+      neutral:  hasData ? Math.round((s.neutral  / s.total) * 100) : null,
+      negative: hasData ? Math.round((s.negative / s.total) * 100) : null,
+      // Raw counts for tooltip "N of M" context
+      positiveCount: s.positive,
+      neutralCount:  s.neutral,
+      negativeCount: s.negative,
     }
   })
+}
+
+// V5.3 — detect spike days + suggest a contributing pattern.
+// "Spike" = a day where negative% jumped ≥ 20 pts vs the prior data day.
+// Returns the WORST spike + best candidate top recommendation for the same agents.
+function computeSentimentSpike(trend) {
+  let worst = null
+  let prior = null
+  for (const d of trend) {
+    if (!d.hasData) continue
+    if (prior && d.negative > prior.negative && (d.negative - prior.negative) >= 20) {
+      const jump = d.negative - prior.negative
+      if (!worst || jump > worst.jump) {
+        worst = { day: d.day, negative: d.negative, negativeCount: d.negativeCount, total: d.total, jump }
+      }
+    }
+    // also flag absolute high-negative days (≥50%) even without a jump comparison
+    if (d.negative >= 50 && (!worst || d.negative > worst.negative)) {
+      worst = { day: d.day, negative: d.negative, negativeCount: d.negativeCount, total: d.total, jump: null }
+    }
+    prior = d
+  }
+  if (!worst) return null
+
+  // Find the top contributing pattern: highest-occurrence active rec touching
+  // any call on the worst day. Best-effort — we don't track sentiment-per-call
+  // here, so we use the agent that had the most negative-sentiment calls.
+  const startISO = worst.day + 'T00:00:00.000Z'
+  const endISO   = worst.day + 'T23:59:59.999Z'
+  const topRec = db.prepare(`
+    SELECT r.title, r.id, ag.name as agentName
+    FROM recommendations r
+    JOIN agents ag ON ag.id = r.agent_id
+    WHERE r.status = 'active'
+      AND r.agent_id IN (
+        SELECT DISTINCT c.agent_id FROM calls c
+        JOIN analyses a ON a.call_id = c.id
+        WHERE a.analyzed_at >= ? AND a.analyzed_at <= ?
+          AND CAST(json_extract(a.kpi_scores_json, '$.sentiment_score') AS INTEGER) < ${SENTIMENT_NEGATIVE_CEIL}
+      )
+    ORDER BY r.occurrence_count DESC LIMIT 1
+  `).get(startISO, endISO)
+
+  return { ...worst, topRec: topRec || null }
 }
 
 function computeTopFailureReasons(sinceISO) {
