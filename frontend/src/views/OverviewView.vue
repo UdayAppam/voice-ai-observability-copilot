@@ -130,6 +130,7 @@
             :value="summary.hero.totalCalls.value"
             :delta="summary.hero.totalCalls.delta"
             :delta-raw="summary.hero.totalCalls.deltaRaw"
+            :window-days="rangeDays"
             icon="📞"
             tone="primary"
           />
@@ -138,6 +139,7 @@
             :value="summary.hero.successRate.value"
             :delta="summary.hero.successRate.delta"
             :delta-raw="summary.hero.successRate.deltaRaw"
+            :window-days="rangeDays"
             icon="✓"
             tone="success"
             format="percent"
@@ -147,6 +149,7 @@
             :value="summary.hero.avgDuration.value"
             :delta="summary.hero.avgDuration.delta"
             :delta-raw="summary.hero.avgDuration.deltaRaw"
+            :window-days="rangeDays"
             icon="⏱"
             tone="secondary"
             format="duration"
@@ -156,6 +159,7 @@
             :value="summary.hero.avgHealthScore.value"
             :delta="summary.hero.avgHealthScore.delta"
             :delta-raw="summary.hero.avgHealthScore.deltaRaw"
+            :window-days="rangeDays"
             icon="🎯"
             tone="primary"
             format="score"
@@ -165,14 +169,18 @@
             :value="summary.hero.actionsRequired.value"
             :delta="summary.hero.actionsRequired.delta"
             :delta-raw="summary.hero.actionsRequired.deltaRaw"
+            :window-days="rangeDays"
             icon="⚠"
             tone="fail"
             :invert-delta="true"
           />
         </div>
 
-        <!-- Row 2: Monitor → Analyze hero (FSB Core Functionality framing) -->
-        <MonitorAnalyzeHero :summary="flywheelSummary" />
+        <!-- Row 2: Monitor → Improve Loop strip (FSB Core Functionality framing) -->
+        <MonitorAnalyzeHero
+          :summary="flywheelSummary"
+          :window-days="rangeDays"
+        />
 
         <!-- Row 3: Flywheel snapshot + Agent Status Strip -->
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">

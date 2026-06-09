@@ -31,14 +31,15 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  label:    { type: String, required: true },
-  value:    { type: [Number, String], required: true },
-  delta:    { type: Number, default: null },   // % change (null when prev period too small)
-  deltaRaw: { type: Number, default: null },   // absolute change — used when % is null/absurd
-  icon:     { type: String, default: '📊' },
-  format:   { type: String, default: 'number' },  // number | percent | duration | score
+  label:      { type: String, required: true },
+  value:      { type: [Number, String], required: true },
+  delta:      { type: Number, default: null },   // % change (null when prev period too small)
+  deltaRaw:   { type: Number, default: null },   // absolute change — used when % is null/absurd
+  windowDays: { type: Number, default: null },   // V5.2 — explicit window for "vs prior Nd" label
+  icon:       { type: String, default: '📊' },
+  format:     { type: String, default: 'number' },  // number | percent | duration | score
   invertDelta: { type: Boolean, default: false }, // true for "actions required" — lower is better
-  tone:     { type: String, default: 'primary' },  // primary | secondary | success | warn | fail
+  tone:       { type: String, default: 'primary' },  // primary | secondary | success | warn | fail
 })
 
 const display = computed(() => {
@@ -60,31 +61,36 @@ const iconBgClass = computed(() => ({
   fail:      'bg-fail/15 text-fail',
 }[props.tone] || 'bg-accent-primary/15 text-accent-primary'))
 
-// Pick whichever delta is more informative + cap absurd %:
-//   - If backend returned null delta but a non-zero deltaRaw → show raw
-//     (prior period was too small for meaningful %)
-//   - If % > 500 → show "+/-N×" instead of the absurd %
-//   - Otherwise → show %
+// V5.2 — consistent label: "↑ N vs prior {days}d"
+//   - If delta% is null but deltaRaw non-zero → show raw with explicit window
+//   - If % > 500 → show "10×+" multiplier instead (raw still in tooltip)
+//   - Otherwise → show % with explicit window
+//   - When deltaRaw=0, suppress the line entirely (no signal)
+const windowLabel = computed(() => props.windowDays ? `prior ${props.windowDays}d` : 'prior period')
 const displayDelta = computed(() => {
   const d = props.delta
   const r = props.deltaRaw
-  if (d === null || d === undefined) {
-    if (r === null || r === undefined || r === 0) return null
-    return { arrow: r > 0 ? '↑' : '↓', text: `${Math.abs(r)} (vs ${r > 0 ? 'previous' : 'previous'} period)` }
+  // Both null/zero → no delta to show
+  if ((d === null || d === undefined) && (r === null || r === undefined)) return null
+  if (r === 0 && (d === 0 || d === null)) return null
+  // % is null OR absurdly large → fall back to raw count
+  if (d === null || d === undefined || Math.abs(d) > 500) {
+    const abs = Math.abs(r ?? 0)
+    return { arrow: (r ?? 0) > 0 ? '↑' : '↓', text: `${abs} vs ${windowLabel.value}` }
   }
-  if (Math.abs(d) > 500) {
-    // % too large to read meaningfully — show multiplier instead
-    const mult = Math.round(Math.abs(d) / 100 + 1)
-    return { arrow: d > 0 ? '↑' : '↓', text: `${mult}× (was tiny)` }
-  }
-  return { arrow: d > 0 ? '↑' : d < 0 ? '↓' : '→', text: `${Math.abs(d)}%` }
+  return { arrow: d > 0 ? '↑' : d < 0 ? '↓' : '→', text: `${Math.abs(d)}% vs ${windowLabel.value}` }
 })
 
 const deltaTooltip = computed(() => {
-  if (props.delta === null && props.deltaRaw !== null) {
-    return 'Period-over-period absolute change (% omitted because prior period was too small to be meaningful)'
-  }
-  return null
+  // Compute exact date ranges if we know windowDays.
+  if (!props.windowDays) return null
+  const now = new Date()
+  const fmt = (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  const days = props.windowDays
+  const currentStart = new Date(now.getTime() - days * 86400e3)
+  const priorStart   = new Date(now.getTime() - 2 * days * 86400e3)
+  return `Comparing last ${days} days (${fmt(currentStart)} – ${fmt(now)}) vs prior ${days} days (${fmt(priorStart)} – ${fmt(currentStart)})` +
+         (props.delta === null && props.deltaRaw !== null ? ' · % omitted because prior period was too small' : '')
 })
 
 const deltaClass = computed(() => {

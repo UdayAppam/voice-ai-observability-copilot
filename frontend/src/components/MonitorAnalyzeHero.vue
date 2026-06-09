@@ -30,6 +30,7 @@
         :sub="s.sub"
         :delta="s.delta"
         :tone="s.tone"
+        :window-days="windowDays"
         :is-last="i === steps.length - 1"
       />
     </div>
@@ -77,7 +78,8 @@ import { computed, h } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const props = defineProps({
-  summary: { type: Object, default: null }, // /api/flywheel/summary payload
+  summary:    { type: Object, default: null }, // /api/flywheel/summary payload
+  windowDays: { type: Number, default: null }, // V5.2 — explicit window for "vs prior Nd" label
 })
 
 // 5 steps drawn from `monitorImproveStrip` (V5.1) instead of the older
@@ -144,9 +146,9 @@ const closureRate = computed(() => props.summary?.closureRate ?? null)
 const bestFix     = computed(() => props.summary?.monitorImproveStrip?.bestFix || null)
 const hasClosureSignal = computed(() => (closureRate.value !== null && closureRate.value > 0) || bestFix.value !== null)
 
-// Inline HeroStep — now renders the trend delta as well
+// Inline HeroStep — renders the trend delta with explicit "vs prior {N}d" label
 const HeroStep = {
-  props: ['stepNum', 'icon', 'label', 'metric', 'sub', 'delta', 'tone', 'isLast'],
+  props: ['stepNum', 'icon', 'label', 'metric', 'sub', 'delta', 'tone', 'windowDays', 'isLast'],
   setup(p) {
     const iconBg = {
       primary:   'bg-accent-primary/15 text-accent-primary-text',
@@ -155,16 +157,22 @@ const HeroStep = {
       pass:      'bg-pass/15 text-pass',
       fail:      'bg-fail/15 text-fail-text',
     }[p.tone] || 'bg-accent-primary/15 text-accent-primary-text'
+    // Same wording as MetricHeroCard so the whole page is consistent.
+    const windowLabel = p.windowDays ? `prior ${p.windowDays}d` : 'prior period'
+    const tooltip = p.windowDays
+      ? `Last ${p.windowDays} days vs prior ${p.windowDays} days`
+      : null
     return () => h('div', { class: 'relative flex items-center gap-2 bg-bg-elevated rounded-card p-3' }, [
       h('div', { class: `w-9 h-9 rounded-card flex items-center justify-center text-base shrink-0 ${iconBg}` }, p.icon),
       h('div', { class: 'min-w-0 flex-1' }, [
         h('div', { class: 'text-[10px] text-text-muted uppercase tracking-wide' }, `${p.stepNum}. ${p.label}`),
         h('div', { class: 'text-base font-bold text-text-primary leading-tight' }, String(p.metric)),
         h('div', { class: 'text-[10px] text-text-secondary truncate' }, p.sub),
-        // Trend delta — colored by direction; null hides
+        // Trend delta — colored by direction; suppressed when delta=0 or null
         (p.delta !== null && p.delta !== undefined && p.delta !== 0) && h('div', {
           class: 'text-[10px] font-mono mt-0.5 ' + (p.delta > 0 ? 'text-pass' : 'text-fail-text'),
-        }, `${p.delta > 0 ? '↑' : '↓'} ${Math.abs(p.delta)}${p.label === 'Analyze' ? ' pts' : ''} vs prior`),
+          title: tooltip,
+        }, `${p.delta > 0 ? '↑' : '↓'} ${Math.abs(p.delta)}${p.label === 'Analyze' ? ' pts' : ''} vs ${windowLabel}`),
       ]),
       !p.isLast && h('div', {
         class: 'hidden lg:block absolute -right-1 top-1/2 -translate-y-1/2 text-accent-primary-text text-base',

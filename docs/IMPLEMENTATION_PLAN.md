@@ -462,6 +462,20 @@ The "Best fix" line is the demo gold. On test DB: `"Follow the Script Steps" +20
 **Files**: `backend/src/routes/flywheel.js`, `frontend/src/components/MonitorAnalyzeHero.vue`
 
 **Verified on test DB** (155 calls, 8 applied, 5 significant improvements): strip shows `Ingest 150 ↑146, Analyze 62/100 ↓3.9pts, Recommend 47 ↑47, Apply 8 ↑8, Measure 7 (5 significant) ↑7` + `Best fix: "Follow the Script Steps" +20.3 pts (n=4)`.
+
+### Phase 5.2 — Dashboard delta-label clarity
+
+PM-grade observation from user: deltas read `↑ 66 (vs previous period)` on hero cards and `↑ N vs prior` on the Monitor→Improve strip — two different phrasings on the same page for the same concept, neither saying what "period"/"prior" actually meant.
+
+**Fix**: unified vocabulary `vs prior {N}d` everywhere, where N is the actively-selected time-range filter.
+
+- `MetricHeroCard.vue` + `MonitorAnalyzeHero.vue` accept new `windowDays` prop
+- `OverviewView.vue` passes `rangeDays` through to all 5 hero cards + the strip
+- Both components compute `windowLabel = props.windowDays ? \`prior ${windowDays}d\` : 'prior period'` (graceful fallback)
+- Delta line tooltip explains the exact comparison: `"Comparing last 30 days (May 10 – Jun 9) vs prior 30 days (Apr 10 – May 10)"`
+- When delta is 0, the line is fully suppressed (no "→ 0 vs prior" noise)
+
+**Result**: same label everywhere, self-explanatory at a glance, exact dates available on hover. When user changes the time filter (7d / 14d / 30d / 90d), the labels live-update.
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200
