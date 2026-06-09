@@ -33,6 +33,14 @@ router.get('/summary', (req, res, next) => {
     const win = (col) => W ? `${col} >= ?` : `1=1`
     const winArgs = W ? [sinceISO] : []
 
+    // Prior period — same window length, shifted back by `days`. Only used to
+    // compute per-stage trend deltas for the Overview Monitor→Improve strip.
+    // We always compute these (not just in 'window' mode) because the strip
+    // wants "vs prior period" comparison even when current view is all-time.
+    const priorSinceISO = new Date(Date.now() - 2 * days * 86400e3).toISOString()
+    const priorWhere = (col) => `${col} >= ? AND ${col} < ?`
+    const priorArgs = [priorSinceISO, sinceISO]
+
     // ── FUNNEL — every stage now uses the same windowing rule
     const issuesDetected = db.prepare(
       `SELECT COUNT(*) as n FROM analyses WHERE ${win('analyzed_at')} AND status != 'pass'`
@@ -55,6 +63,17 @@ router.get('/summary', (req, res, next) => {
       WHERE outcome_computed_at IS NOT NULL AND after_avg_score > before_avg_score
       AND ${win('outcome_computed_at')}
     `).get(...winArgs).n
+
+    // Prior-period counts (always same-length window shifted back) — drive the
+    // Overview Monitor→Improve strip's trend deltas. Computed always, not only
+    // in window mode, so the strip always has comparison data.
+    const priorAnalysed = db.prepare(
+      `SELECT COUNT(*) as n FROM calls WHERE ${priorWhere('call_timestamp')}`
+    ).get(...priorArgs).n
+    const priorScored = db.prepare(`SELECT AVG(overall_score) as avg FROM analyses WHERE ${priorWhere('analyzed_at')}`).get(...priorArgs).avg
+    const priorRecs = db.prepare(`SELECT COUNT(*) as n FROM recommendations WHERE ${priorWhere('first_seen_at')}`).get(...priorArgs).n
+    const priorApplied = db.prepare(`SELECT COUNT(*) as n FROM recommendations WHERE status='applied' AND ${priorWhere('applied_at')}`).get(...priorArgs).n
+    const priorMeasured = db.prepare(`SELECT COUNT(*) as n FROM recommendations WHERE outcome_computed_at IS NOT NULL AND ${priorWhere('outcome_computed_at')}`).get(...priorArgs).n
 
     // The "we trust this" definition — delta ≥ 2 pts AND n ≥ 3 calls under new prompt.
     // Filters out noise from tiny samples and trivial deltas.
@@ -246,6 +265,35 @@ router.get('/summary', (req, res, next) => {
       passRatePct, waitingStage,
     })
 
+    // Best fix this period — surfaced in the Overview Monitor→Improve strip
+    // as the proof-of-loop-closure callout
+    const bestFix = db.prepare(`
+      SELECT title, (after_avg_score - before_avg_score) as delta, after_sample_size
+      FROM recommendations
+      WHERE outcome_computed_at IS NOT NULL
+        AND (after_avg_score - before_avg_score) > 0
+        AND ${win('outcome_computed_at')}
+      ORDER BY delta DESC LIMIT 1
+    `).get(...winArgs)
+
+    // Per-stage prior counts for the Monitor→Improve 5-step strip.
+    // Stage counts compare current-window total → prior-window total.
+    // The "Analyze" delta is in score points (current avg − prior avg).
+    const monitorImproveStrip = {
+      ingest:    { current: totalAnalysedInWindow, prior: priorAnalysed, deltaRaw: totalAnalysedInWindow - priorAnalysed },
+      analyze:   { currentAvgScore: db.prepare(`SELECT AVG(overall_score) as avg FROM analyses WHERE ${win('analyzed_at')}`).get(...winArgs).avg || 0,
+                   priorAvgScore: priorScored || 0 },
+      recommend: { current: recsGenerated, prior: priorRecs, deltaRaw: recsGenerated - priorRecs },
+      apply:     { current: recsApplied, prior: priorApplied, deltaRaw: recsApplied - priorApplied },
+      measure:   { current: outcomesMeasured, prior: priorMeasured, deltaRaw: outcomesMeasured - priorMeasured,
+                   significantCount: improvedSignificant, anyCount: improvedAny },
+      bestFix: bestFix ? {
+        title: bestFix.title,
+        delta: Math.round(bestFix.delta * 10) / 10,
+        sampleSize: bestFix.after_sample_size,
+      } : null,
+    }
+
     res.json({
       window: { days, sinceISO, mode },
       funnel,
@@ -257,6 +305,8 @@ router.get('/summary', (req, res, next) => {
       narratives,
       impact,
       nextAction,
+      // V5.1 — Overview strip deltas + best-fix callout
+      monitorImproveStrip,
     })
   } catch (err) {
     next(err)

@@ -432,6 +432,36 @@ PM-grade observation from user: dashboard showed `actionsRequired: 67 (6600%)` a
 - 3rd escalation: `spawnedRec: { id, status: 'spawned', count: 3, title: 'Reduce recurring "script_training" escalations' }`
 - New `recommendations` row with type=`escalation_pattern`, severity=warning, occurrence_count=3
 - Visible immediately in `/patterns` page; can be applied via real V4 flow
+
+### Phase 5.1 — Monitor→Improve Loop strip redesign
+
+PM-grade observation from user: the Overview's `Core Functionality / Monitor → Analyze Loop` widget showed 4 generic steps (Ingest, Analyze, **Surface**, **Act**) that stopped before the closure. A reviewer looking at this card would see "this product detects problems" but miss "this product *closes the loop and proves the fixes work*" — i.e., the V4+ differentiator was invisible at the Overview level.
+
+**Renamed**: `Monitor → Analyze Loop` → `Monitor → Improve Loop` (sets the right expectation: the product fixes things, doesn't just observe).
+
+**5 steps replace 4**: Ingest → Analyze → Recommend → Apply → Measure. The last two are the V4-V4.8 work made visible — without them the card was a half-product narrative.
+
+**Per-step trend deltas**: each card shows `↑ +N vs prior` colored by direction. Single point-in-time numbers don't tell a story; deltas do. Reviewer instantly sees motion.
+
+**Closure callouts replace buried "Why" line** — two bold lines:
+- `Closure: {closureRate}% of issues → significant improvement (Δ ≥ 2 pts, n ≥ 3)`
+- `Best fix: "{title}" +{delta} pts (n={sampleSize})`
+
+The "Best fix" line is the demo gold. On test DB: `"Follow the Script Steps" +20.3 pts (n=4)` — concrete proof the flywheel works.
+
+**Pre-closure state** when nothing measured yet: replaces the callouts with a gentle "Apply a recommendation + accumulate post-apply calls to see the loop close." Honest framing, no fake numbers.
+
+**Backend changes** (`/api/flywheel/summary` payload):
+- New `monitorImproveStrip` field with `{ingest, analyze, recommend, apply, measure, bestFix}` shape
+- Each stage has `current`, `prior` (same-length window shifted back), `deltaRaw`
+- `analyze` includes `currentAvgScore` + `priorAvgScore` so the score delta is in points, not %
+- `measure` exposes `significantCount` (Δ≥2 AND n≥3) and `anyCount` for the sub-label
+- `bestFix` returns the highest-delta measured rec in the window (or null pre-closure)
+- All computed in the existing `/api/flywheel/summary` route — no new endpoint
+
+**Files**: `backend/src/routes/flywheel.js`, `frontend/src/components/MonitorAnalyzeHero.vue`
+
+**Verified on test DB** (155 calls, 8 applied, 5 significant improvements): strip shows `Ingest 150 ↑146, Analyze 62/100 ↓3.9pts, Recommend 47 ↑47, Apply 8 ↑8, Measure 7 (5 significant) ↑7` + `Best fix: "Follow the Script Steps" +20.3 pts (n=4)`.
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200
