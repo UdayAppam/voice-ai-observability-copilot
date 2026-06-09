@@ -38,13 +38,15 @@ export const useAgentStore = defineStore('agents', () => {
     }
   }
 
-  async function fetchAgent(id) {
+  // V5.5 — accepts { days } so aggregates (useActions, deviations, recently
+  // applied) respect the period selector on Agent Detail.
+  async function fetchAgent(id, { days = 30 } = {}) {
     loading.value = true
     error.value = null
     currentAgent.value = null
     currentInsights.value = null
     try {
-      const { data } = await client.get(`/agents/${id}`)
+      const { data } = await client.get(`/agents/${id}`, { params: { days } })
       currentAgent.value = data
     } catch (err) {
       error.value = err

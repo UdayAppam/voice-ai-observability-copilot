@@ -36,11 +36,19 @@ router.get('/', (_req, res, next) => {
   }
 })
 
-// GET /api/agents/:id
+// GET /api/agents/:id?days=30
+// V5.5 — extended response now includes per-agent aggregates aligned with FSB
+// Core Functionality (Use Actions, deviations, missed opportunities, recently
+// applied + measurement proof).
 router.get('/:id', (req, res, next) => {
   try {
     const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(req.params.id)
     if (!agent) return next(httpError('AGENT_NOT_FOUND', `Agent ${req.params.id} not found`, 404))
+
+    // Window for the aggregates below. Falls back to 30d if not given.
+    const days = Math.min(90, Math.max(1, parseInt(req.query.days) || 30))
+    const sinceISO = new Date(Date.now() - days * 86400e3).toISOString()
+    const priorSinceISO = new Date(Date.now() - 2 * days * 86400e3).toISOString()
 
     const kpiDefinitions = db
       .prepare('SELECT id, name, label, weight, threshold, description FROM kpi_definitions WHERE agent_id = ? ORDER BY weight DESC')
@@ -101,6 +109,132 @@ router.get('/:id', (req, res, next) => {
       }
     }
 
+    // ─── V5.5 — Quick stats (FSB "intuitive dashboard" alignment) ────────
+    const totalCallsInWindow = db.prepare(
+      'SELECT COUNT(*) as n FROM calls WHERE agent_id = ? AND call_timestamp >= ?'
+    ).get(agent.id, sinceISO).n
+    const prevTotalCallsInWindow = db.prepare(
+      'SELECT COUNT(*) as n FROM calls WHERE agent_id = ? AND call_timestamp >= ? AND call_timestamp < ?'
+    ).get(agent.id, priorSinceISO, sinceISO).n
+    const POSITIVE_OUTCOMES = new Set([
+      'booked','completed_booked','meeting_booked','appointment_booked','consultation_booked',
+      'trial_started','sale','sold','closed_won','qualified','lead_qualified',
+    ])
+    const outcomeRows = db.prepare(
+      'SELECT outcome FROM calls WHERE agent_id = ? AND call_timestamp >= ?'
+    ).all(agent.id, sinceISO)
+    const conversionCount = outcomeRows.reduce((s, r) => s + (POSITIVE_OUTCOMES.has(r.outcome) ? 1 : 0), 0)
+    const conversionRate = outcomeRows.length > 0
+      ? Math.round((conversionCount / outcomeRows.length) * 1000) / 10 : 0
+    const passRateRow = db.prepare(`
+      SELECT
+        SUM(CASE WHEN a.status = 'pass' THEN 1 ELSE 0 END) as good,
+        COUNT(*) as total
+      FROM analyses a JOIN calls c ON c.id = a.call_id
+      WHERE c.agent_id = ? AND a.analyzed_at >= ?
+    `).get(agent.id, sinceISO)
+    const kpiPassRate = passRateRow.total > 0
+      ? Math.round((passRateRow.good / passRateRow.total) * 1000) / 10 : 0
+    const cycleRow = db.prepare(`
+      SELECT AVG(julianday(applied_at) - julianday(first_seen_at)) as avgDays
+      FROM recommendations
+      WHERE agent_id = ? AND applied_at IS NOT NULL AND first_seen_at IS NOT NULL
+    `).get(agent.id)
+    const avgCycleDays = cycleRow.avgDays !== null
+      ? Math.round(cycleRow.avgDays * 10) / 10 : null
+    const hallucinationCalls = db.prepare(`
+      SELECT COUNT(*) as n FROM analyses a JOIN calls c ON c.id = a.call_id
+      WHERE c.agent_id = ? AND a.analyzed_at >= ? AND a.hallucinations_json != '[]'
+    `).get(agent.id, sinceISO).n
+    const quickStats = {
+      totalCalls: totalCallsInWindow,
+      totalCallsDelta: totalCallsInWindow - prevTotalCallsInWindow,
+      conversionRate,
+      conversionCount,
+      kpiPassRate,
+      passCount: passRateRow.good,
+      avgCycleDays,
+      hallucinationCalls,
+    }
+
+    // ─── V5.5 — Use Actions breakdown (FSB "Highlight Use Actions") ──────
+    // Counts action types from analyses.use_actions_json overlaid with status
+    // from use_action_statuses. Powers the new per-agent Use Actions widget.
+    const usePayloads = db.prepare(`
+      SELECT a.call_id, a.use_actions_json
+      FROM analyses a JOIN calls c ON c.id = a.call_id
+      WHERE c.agent_id = ? AND a.analyzed_at >= ? AND a.use_actions_json != '[]'
+    `).all(agent.id, sinceISO)
+    const useActionTypes = {}
+    for (const p of usePayloads) {
+      try {
+        const list = JSON.parse(p.use_actions_json)
+        for (const ua of list) {
+          const type = ua.actionType || 'other'
+          if (!useActionTypes[type]) {
+            useActionTypes[type] = { actionType: type, total: 0, pending: 0, escalated: 0, resolved: 0, dismissed: 0 }
+          }
+          useActionTypes[type].total++
+          const status = db.prepare(
+            'SELECT status FROM use_action_statuses WHERE call_id = ? AND turn_index = ? AND action_type = ?'
+          ).get(p.call_id, ua.turnIndex, type)
+          const s = status?.status || 'pending'
+          useActionTypes[type][s] = (useActionTypes[type][s] || 0) + 1
+        }
+      } catch { /* skip parse failures */ }
+    }
+    const useActionsBreakdown = Object.values(useActionTypes)
+      .sort((a, b) => b.total - a.total)
+
+    // ─── V5.5 — Deviations + Missed Opportunities aggregate (FSB "Identify
+    // deviations, failures, missed opportunities") ──────
+    function aggregateJsonField(field, limit = 5) {
+      const rows = db.prepare(`
+        SELECT a.${field} FROM analyses a JOIN calls c ON c.id = a.call_id
+        WHERE c.agent_id = ? AND a.analyzed_at >= ? AND a.${field} != '[]'
+      `).all(agent.id, sinceISO)
+      const byDesc = {}
+      for (const r of rows) {
+        try {
+          for (const item of JSON.parse(r[field])) {
+            const desc = (item.description || item.pattern || JSON.stringify(item)).slice(0, 100)
+            byDesc[desc] = byDesc[desc] || { description: desc, callCount: 0 }
+            byDesc[desc].callCount++
+          }
+        } catch { /* ignore */ }
+      }
+      return Object.values(byDesc).sort((a, b) => b.callCount - a.callCount).slice(0, limit)
+    }
+    const deviationsAggregate = aggregateJsonField('deviations_json')
+    const missedOpportunitiesAggregate = aggregateJsonField('missed_opportunities_json')
+
+    // ─── V5.5 — Recently applied with measurement proof (FSB "Validation
+    // Flywheel"). Shows the closed loop for THIS agent. ──────
+    const recentlyAppliedRows = db.prepare(`
+      SELECT id, title, severity, applied_at, before_avg_score, after_avg_score,
+             before_sample_size, after_sample_size, outcome_computed_at
+      FROM recommendations
+      WHERE agent_id = ? AND status = 'applied' AND applied_at IS NOT NULL
+      ORDER BY applied_at DESC LIMIT 5
+    `).all(agent.id)
+    const recentlyApplied = recentlyAppliedRows.map((r) => {
+      const delta = r.after_avg_score !== null && r.before_avg_score !== null
+        ? Math.round((r.after_avg_score - r.before_avg_score) * 10) / 10 : null
+      const status = r.outcome_computed_at
+        ? (delta >= 2 && r.after_sample_size >= 3 ? 'measured_significant'
+           : delta > 0 ? 'measured_minor' : 'measured_regression')
+        : 'waiting'
+      return {
+        id: r.id, title: r.title, severity: r.severity,
+        appliedAt: r.applied_at,
+        beforeAvg: r.before_avg_score,
+        afterAvg: r.after_avg_score,
+        afterSampleSize: r.after_sample_size,
+        delta,
+        status,
+      }
+    })
+
     res.json({
       id: agent.id,
       name: agent.name,
@@ -108,6 +242,13 @@ router.get('/:id', (req, res, next) => {
       script: agent.script,
       kpiDefinitions,
       performance: { healthScore, trend, last7Days, kpiScores, statusDistribution, worstKpi },
+      // V5.5 — new aggregates for the redesigned Agent Detail page
+      window: { days, sinceISO },
+      quickStats,
+      useActionsBreakdown,
+      deviationsAggregate,
+      missedOpportunitiesAggregate,
+      recentlyApplied,
     })
   } catch (err) {
     next(err)

@@ -531,6 +531,48 @@ PM-grade observation from user: test DB showed `Success Rate: 0%` even though ca
 - Back-compat: `hero.successRate` still returned (aliased to `conversionRate`) so any external reader still parses.
 
 **Files**: `backend/src/routes/dashboard.js`, `frontend/src/views/OverviewView.vue` (6 hero cards instead of 5; tweaked icons so two different "score" cards aren't both 🎯).
+
+### Phase 5.5 — Agent Detail redesign (FSB-aligned)
+
+PM-grade audit of `/agents/:id` surfaced three FSB requirement gaps + several UX issues:
+
+**Gaps vs FSB Core Functionality**:
+1. "Highlight Use Actions" — not surfaced on Agent Detail at all
+2. "Immediate recommendations for prompt/script/agent adjustments" — AI Insights cards showed `suggestedChange` as TEXT only, no Apply button
+3. "Validation Flywheel" — applied recommendations weren't visible at agent level with their measurement proof
+
+**Additional UX issues**:
+- Worst-KPI badge appeared in hero AND as a full callout below — redundant
+- Trend label "↑ trending up" had no comparison-period context
+- No deviations/missed opps aggregate at agent level
+- Calls list had no hallucination flag, date with no time
+- No period selector matching dashboard
+
+**Backend** (`backend/src/routes/agents.js GET /:id?days=30`):
+- Accepts `days` query param (default 30); computes prior-period for trend deltas
+- New `quickStats` field: `{ totalCalls, totalCallsDelta, conversionRate, conversionCount, kpiPassRate, passCount, avgCycleDays, hallucinationCalls }` — answers "is this agent healthy?" in 4 numbers
+- New `useActionsBreakdown` field: per `actionType` count + status overlay (pending/escalated/resolved/dismissed) — FSB-required Use Actions surface
+- New `deviationsAggregate` + `missedOpportunitiesAggregate`: top 5 by call-count, parsed from `analyses.deviations_json` + `missed_opportunities_json`
+- New `recentlyApplied` field: last 5 applied recs with `delta`, `afterSampleSize`, `status` (`measured_significant` / `measured_minor` / `measured_regression` / `waiting`) — closes the FSB Validation Flywheel loop at agent level
+
+**Frontend** (`frontend/src/views/AgentDetailView.vue` — substantial rewrite):
+- Hero consolidated: donut + name + goal + 4-stat grid (Calls Δ, Conversion %, KPI Pass %, Cycle Time) + single-line trend + worst-KPI badge + hallucination badge inline
+- New "Use Actions for this agent" section with per-type breakdown + queue links — addresses the explicit FSB requirement
+- New "Recurring Deviations + Missed Opportunities + Recently Applied" card — 3 sub-sections in one card showing the full FSB Monitor→Analyze→Validate loop
+- AI Insights cards now have **Apply buttons** (uses existing `ApplyRecommendationButton` → V4 apply flow)
+- "See all patterns for this agent →" link below Insights
+- Calls list shows inline hallucination badge + `Jun 9 14:32` date+time format
+- Period selector (7/14/30/90 days) in filters — matches main dashboard
+
+**Frontend store** (`frontend/src/stores/agentStore.js`):
+- `fetchAgent(id, { days })` accepts days param
+
+**Verified end-to-end** on test DB `reg-maya`:
+- quickStats: 48 calls, 8.3% conversion, 63.8% pass rate, 0.9d cycle, 8 hallucinations
+- useActionsBreakdown: 7 `script_training` (all resolved)
+- deviationsAggregate: "Did not ask about specific problem" — 17 of 48 calls (35%)
+- recentlyApplied: 3 measured_significant recs with deltas +20.3, +19.6, +19.6 pts (n=3-4)
+- All FSB requirements (Monitor / Analyze / Use Actions / immediate recommendations / Validation Flywheel) now visible at agent level
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200
