@@ -146,24 +146,29 @@ const closureRate = computed(() => props.summary?.closureRate ?? null)
 const bestFix     = computed(() => props.summary?.monitorImproveStrip?.bestFix || null)
 const hasClosureSignal = computed(() => (closureRate.value !== null && closureRate.value > 0) || bestFix.value !== null)
 
-// Inline HeroStep — renders the trend delta with explicit "vs prior {N}d" label
+// Inline HeroStep — renders the trend delta with explicit "vs prior {N}d" label.
+// IMPORTANT: every prop-derived value used by the render function must be
+// computed/reactive. A plain `const x = p.windowDays ? …` reads the prop ONCE
+// at setup time and never updates when the parent changes the filter.
 const HeroStep = {
   props: ['stepNum', 'icon', 'label', 'metric', 'sub', 'delta', 'tone', 'windowDays', 'isLast'],
   setup(p) {
-    const iconBg = {
+    // Tone class is reactive too — picking from a static map but the lookup
+    // must happen each render to pick up tone changes.
+    const iconBg = computed(() => ({
       primary:   'bg-accent-primary/15 text-accent-primary-text',
       secondary: 'bg-accent-secondary/15 text-accent-secondary-text',
       warn:      'bg-warn/15 text-warn',
       pass:      'bg-pass/15 text-pass',
       fail:      'bg-fail/15 text-fail-text',
-    }[p.tone] || 'bg-accent-primary/15 text-accent-primary-text'
-    // Same wording as MetricHeroCard so the whole page is consistent.
-    const windowLabel = p.windowDays ? `prior ${p.windowDays}d` : 'prior period'
-    const tooltip = p.windowDays
-      ? `Last ${p.windowDays} days vs prior ${p.windowDays} days`
-      : null
+    }[p.tone] || 'bg-accent-primary/15 text-accent-primary-text'))
+    // Wording matches MetricHeroCard so the whole page reads consistently.
+    const windowLabel = computed(() => p.windowDays ? `prior ${p.windowDays}d` : 'prior period')
+    const tooltip = computed(() =>
+      p.windowDays ? `Last ${p.windowDays} days vs prior ${p.windowDays} days` : null
+    )
     return () => h('div', { class: 'relative flex items-center gap-2 bg-bg-elevated rounded-card p-3' }, [
-      h('div', { class: `w-9 h-9 rounded-card flex items-center justify-center text-base shrink-0 ${iconBg}` }, p.icon),
+      h('div', { class: `w-9 h-9 rounded-card flex items-center justify-center text-base shrink-0 ${iconBg.value}` }, p.icon),
       h('div', { class: 'min-w-0 flex-1' }, [
         h('div', { class: 'text-[10px] text-text-muted uppercase tracking-wide' }, `${p.stepNum}. ${p.label}`),
         h('div', { class: 'text-base font-bold text-text-primary leading-tight' }, String(p.metric)),
@@ -171,8 +176,8 @@ const HeroStep = {
         // Trend delta — colored by direction; suppressed when delta=0 or null
         (p.delta !== null && p.delta !== undefined && p.delta !== 0) && h('div', {
           class: 'text-[10px] font-mono mt-0.5 ' + (p.delta > 0 ? 'text-pass' : 'text-fail-text'),
-          title: tooltip,
-        }, `${p.delta > 0 ? '↑' : '↓'} ${Math.abs(p.delta)}${p.label === 'Analyze' ? ' pts' : ''} vs ${windowLabel}`),
+          title: tooltip.value,
+        }, `${p.delta > 0 ? '↑' : '↓'} ${Math.abs(p.delta)}${p.label === 'Analyze' ? ' pts' : ''} vs ${windowLabel.value}`),
       ]),
       !p.isLast && h('div', {
         class: 'hidden lg:block absolute -right-1 top-1/2 -translate-y-1/2 text-accent-primary-text text-base',
