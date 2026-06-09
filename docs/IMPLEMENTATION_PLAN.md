@@ -476,6 +476,32 @@ PM-grade observation from user: deltas read `↑ 66 (vs previous period)` on her
 - When delta is 0, the line is fully suppressed (no "→ 0 vs prior" noise)
 
 **Result**: same label everywhere, self-explanatory at a glance, exact dates available on hover. When user changes the time filter (7d / 14d / 30d / 90d), the labels live-update.
+
+### Phase 5.3 — Caller Mood Trend redesign
+
+PM critique of the `Sentiment Trend` widget surfaced 9 real product issues — title was generic, subtitle was jargon ("sentiment bucket"), bucket thresholds didn't match the agent's sentiment KPI threshold, zero-data days plotted as 0% (read as "agent collapsed"), x-axis was technical (`06-04`), tooltip had no sample size, no per-agent filter, no spike detection, no actionable footer.
+
+**Backend changes** (`backend/src/routes/dashboard.js`):
+- `computeSentimentTrend` now returns `total` (sample size), `hasData`, plus raw counts per bucket — UI uses these for "N of M calls" tooltips and to hide zero-data days
+- Accepts optional `agentId` filter so per-agent trend is possible
+- New `computeSentimentSpike(trend)` — detects worst-mood day (negative ≥ 50% OR a +20pt jump vs prior day) and links to the top occurrence-count active rec on the same agent(s)
+- Response now exposes `sentimentTrend`, `sentimentSpike`, `sentimentBucketThresholds`, `sentimentAgentFilter`
+- Endpoint accepts `?sentimentAgentId=<id>` query param
+
+**Frontend changes** (`frontend/src/components/SentimentTrend.vue` + `OverviewView.vue`):
+- Renamed: `Sentiment Trend` → `Caller Mood Trend`
+- Subtitle in plain English with color legend: `green = happy, yellow = mixed, red = upset` + threshold caption
+- Per-agent dropdown (All agents / specific agent) — emits `filter-change` event; parent re-fetches
+- Day labels: weekday names for ≤14d windows, `Jun 4` format for longer
+- No-data days plot `null` (gap in line) instead of `0%` — stops "agent collapsed" misread
+- Custom tooltip shows `"Fri Jun 7 — Happy: 25% (3 of 12)"` with all 3 buckets + sample size
+- Spike day auto-annotated with red vertical line + "Spike" label using ApexCharts annotations API
+- Footer: `🚨 Worst day: Fri Jun 7 — 100% upset (11 of 11 calls) · jumped +67 pts vs prior day` + top-pattern link to Patterns when available
+- Footer also notes `ⓘ N days in this window had no calls` when applicable
+
+**Verified end-to-end on live DB**:
+- Backend returns 30-day trend with 27 data-days and 3 gaps; spike correctly identified June 8 (11 of 11 calls negative, +67 jump)
+- Bundle includes new strings: `Caller Mood Trend`, `Happy`, `Mixed`, `Upset`, `Worst day:`, `threshold:`
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200
