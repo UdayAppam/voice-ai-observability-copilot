@@ -121,7 +121,7 @@ const steps = computed(() => {
     {
       icon: '💡', label: 'Recommend',
       metric: mi.recommend?.current ?? 0,
-      sub: 'patterns surfaced',
+      sub: 'recommendations surfaced',
       delta: mi.recommend?.deltaRaw ?? null,
       tone: 'warn',
     },

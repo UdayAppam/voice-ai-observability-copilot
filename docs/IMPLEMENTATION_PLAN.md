@@ -640,6 +640,45 @@ User flagged preview-apply taking ~47s cold. Bench-traced bottleneck to `PromptS
 - `agent_prompt_structure` cache schema unchanged — same `sections_json` blob format, only `parser_version` bumped
 
 **Files**: `backend/src/services/PromptStructureService.js` (new `_parseWithSafeguards`, `_llmParseOffsets`, `_validateOffsets`, `_materialiseFromOffsets`; kept `_llmParseVerbatim` as fallback), `backend/scripts/bench-parse-sections-ab.js` (benchmark, kept for future tuning).
+
+### Phase 5.8 — Vocabulary + threshold alignment (PM + architect audit fixes)
+
+PM + tech-architect audit found 2 real inconsistencies between what the UI claims and what the implementation does:
+
+**Bug 1: Sentiment threshold mismatch**
+- `SentimentService` used `POSITIVE_THRESHOLD=70`, `NEGATIVE_CEIL=50` (V5.3)
+- But the per-agent sentiment KPI seeded by `IngestionService` has `threshold=60` (matching all default KPIs)
+- Net effect: a call with `sentiment_score=65` showed as **"mixed/yellow"** on the Caller Mood Trend chart but was counted as **passing the KPI threshold** in the KPI Pass Rate. Same number → contradictory verdicts on two cards of the same dashboard.
+
+**Fix**: Aligned `SentimentService` thresholds to `POSITIVE_THRESHOLD=60`, `NEGATIVE_CEIL=30`. Now ≥60 is "happy" (matches KPI grading), 30-59 is "mixed", <30 is "upset". Both `dashboard.js` and `agents.js` response objects updated to return `{ positive: 60, negative: 30 }`.
+
+**Bug 2: "Patterns" vs "Recommendations" vocabulary drift**
+- Same entity referenced as "Patterns" on some surfaces and "Recommendations" on others — confusing.
+- The DB table is `recommendations`. The `/patterns` page groups them by `cluster_key` for the "fix once, help many" view.
+- Decision: unify on **"Recommendations"** everywhere user-facing, keep route URL `/patterns` for link stability.
+
+**Renames** (all user-facing labels updated):
+- `Topbar.vue` nav tab: `Patterns` → `Recommendations`
+- `PatternsView.vue` h1: `Failure Patterns` → `Recommendations`
+- `PatternsView.vue` summary stat: `Patterns` → `Recommendations`
+- `MonitorAnalyzeHero.vue` step sub-label: `patterns surfaced` → `recommendations surfaced`
+- `ActionsView.vue` link text: `Patterns` → `Recommendations`
+- `AgentDetailView.vue` link text: `Patterns` → `Recommendations`
+- Route URL `/patterns` left unchanged (avoids breaking bookmarks/redirects)
+
+**Verified** — `grep` audit confirms no remaining user-visible "Patterns" labels in frontend templates. Both endpoint responses now return aligned threshold values (60/30).
+
+**Architect audit summary** (also captured in IMPLEMENTATION_PLAN audits across V4.3, V4.4, V5.4, V5.8):
+- ✅ Funnel math + lifecycle sentence math match implementation
+- ✅ Stage card `producesRows` correctly maps to funnel rows
+- ✅ Apply chain (V4 + V4.3 fix) verified end-to-end on both DBs
+- ✅ Measurement chain (V4.3 + V4.4 significance) aligned
+- ✅ Patterns rollup (V4.5) per-agent state correct
+- ✅ Use Actions → flywheel via escalation auto-spawn (V5.0)
+- ✅ Conversion Rate vs KPI Pass Rate (V5.4) — two separately-labeled signals
+- ✅ Sentiment thresholds now match per-agent KPI default (V5.8)
+- ✅ "Patterns" terminology unified (V5.8)
+- ✅ Latency optimization (V5.7) preserves downstream contract
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200

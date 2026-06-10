@@ -258,7 +258,7 @@ router.get('/:id', (req, res, next) => {
       // V5.6 — per-agent Caller Mood Trend (reuses SentimentTrend.vue component)
       sentimentTrend,
       sentimentSpike,
-      sentimentBucketThresholds: { positive: 70, negative: 50 },
+      sentimentBucketThresholds: { positive: 60, negative: 30 },
     })
   } catch (err) {
     next(err)

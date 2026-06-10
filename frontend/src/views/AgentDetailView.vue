@@ -246,7 +246,7 @@
             </div>
             <p v-else class="text-xs text-text-muted">
               No recommendations applied yet. Open
-              <RouterLink to="/patterns" class="text-accent-primary-text hover:underline">Patterns</RouterLink>
+              <RouterLink to="/patterns" class="text-accent-primary-text hover:underline">Recommendations</RouterLink>
               to pick one.
             </p>
           </div>

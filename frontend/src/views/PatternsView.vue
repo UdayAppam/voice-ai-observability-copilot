@@ -39,7 +39,7 @@
     <div class="p-6 space-y-4">
       <div>
         <h1 class="text-xl font-bold text-text-primary">
-          Failure Patterns
+          Recommendations
         </h1>
         <p class="text-xs text-text-secondary mt-0.5">
           Recommendations clustered by failure mode — fix once, help many agents
@@ -67,7 +67,7 @@
         <!-- Summary row -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <SummaryStat
-            label="Patterns"
+            label="Recommendations"
             :value="patterns.length"
             tone="primary"
           />

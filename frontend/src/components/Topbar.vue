@@ -58,7 +58,7 @@ const route = useRoute()
 const tabs = [
   { to: '/',          label: 'Overview', icon: '📊', match: ['overview', 'agent-detail', 'call-detail', 'calls'] },
   { to: '/flywheel',  label: 'Flywheel', icon: '♻️', match: ['flywheel'] },
-  { to: '/patterns',  label: 'Patterns', icon: '🔍', match: ['patterns'] },
+  { to: '/patterns',  label: 'Recommendations', icon: '🔍', match: ['patterns'] },
   { to: '/actions',   label: 'Actions',  icon: '⚠️', match: ['actions'] },
 ]
 

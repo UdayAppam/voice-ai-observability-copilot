@@ -9,10 +9,13 @@
 
 const db = require('../db/database')
 
-// PM-aligned thresholds. Match the per-agent sentiment KPI default threshold
-// so the chart and the KPI grading speak the same language.
-const SENTIMENT_POSITIVE_THRESHOLD = 70
-const SENTIMENT_NEGATIVE_CEIL = 50
+// PM-aligned thresholds (V5.8 fix). Match the per-agent sentiment KPI default
+// threshold (60) so the chart and the KPI grading speak the same language.
+// Before V5.8, chart used 70 positive / 50 negative — meaning a sentiment of
+// 65 would show as "mixed" on the chart yet "passing the KPI" on the KPI bar.
+// Same number → two different verdicts. Now both surfaces agree.
+const SENTIMENT_POSITIVE_THRESHOLD = 60
+const SENTIMENT_NEGATIVE_CEIL = 30
 
 // Day-by-day distribution. `total` exposed for tooltip "N of M calls" context.
 // `hasData` lets the UI hide zero-data days instead of plotting 0% (which

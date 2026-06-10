@@ -65,7 +65,7 @@ router.get('/summary', (req, res, next) => {
       sentimentTrend:        computeSentimentTrend(sinceISO, days, sentimentAgentId),
       sentimentSpike:        computeSentimentSpike(computeSentimentTrend(sinceISO, days, sentimentAgentId)),
       sentimentAgentFilter:  sentimentAgentId,
-      sentimentBucketThresholds: { positive: 70, negative: 50 },
+      sentimentBucketThresholds: { positive: 60, negative: 30 },
       topFailureReasons:     computeTopFailureReasons(sinceISO),
       callsNeedingAttention: computeCallsNeedingAttention(sinceISO),
       aggregatedRecommendations: computeAggregatedRecommendations(sinceISO),
