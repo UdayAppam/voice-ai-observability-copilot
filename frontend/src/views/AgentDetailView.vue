@@ -82,9 +82,9 @@
                 <span
                   v-if="qs?.hallucinationCalls > 0"
                   class="badge-fail"
-                  :title="`${qs.hallucinationCalls} calls flagged a hallucination — review for brand/legal risk`"
+                  :title="`${qs.hallucinationCalls} calls where the agent made unverified factual claims — brand/legal risk, review them first`"
                 >
-                  ⚠ {{ qs.hallucinationCalls }} hallucinations
+                  ⚠ {{ qs.hallucinationCalls }} calls with unverified claims
                 </span>
               </div>
             </div>
@@ -364,48 +364,158 @@
           </p>
         </section>
 
-        <!-- ════════ CALLS — with hallucination flag inline ══════════════ -->
+        <!-- ════════ CALLS — V5.9 redesigned list ════════════════════════ -->
+        <!--
+          Goals (PM):
+            1. Fix the bug: total said "47" but only 20 rendered → Load more.
+            2. Help the user scan: card rows with caller, duration, time-ago,
+               grouped by day (Today / Yesterday / date).
+            3. Help the user find: sort dropdown + free-text search.
+            4. Help the user triage hallucinations (highest-stakes signal):
+               red left border + amber banner with count + tooltip with
+               the most concerning claim — no need to open every call.
+        -->
         <section class="card p-4">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="text-sm font-semibold text-text-primary">Calls ({{ callStore.totalCalls }})</h3>
+          <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
+            <h3 class="text-sm font-semibold text-text-primary">
+              Calls
+              <span class="text-text-muted font-normal text-[11px] ml-1">
+                showing {{ callStore.calls.length }} of {{ callStore.totalCalls }}
+              </span>
+            </h3>
+            <div class="flex items-center gap-2 flex-wrap">
+              <input
+                v-model.trim="searchInput"
+                type="search"
+                placeholder="🔎 caller or issue"
+                class="bg-bg-elevated border border-border-subtle text-text-primary text-xs rounded-card px-2 py-1 w-44 placeholder:text-text-muted"
+                @input="onSearchInput"
+                @keyup.enter="applyCallFilters"
+              />
+              <select
+                v-model="sortBy"
+                class="bg-bg-elevated border border-border-subtle text-text-secondary text-xs rounded-card px-2 py-1"
+                @change="applyCallFilters"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="score_asc">Lowest score</option>
+                <option value="score_desc">Highest score</option>
+                <option value="duration_desc">Longest</option>
+                <option value="duration_asc">Shortest</option>
+              </select>
+            </div>
           </div>
-          <div class="flex gap-1 mb-2 overflow-x-auto">
+
+          <div class="flex gap-1 mb-3 overflow-x-auto pb-1">
             <button
-              v-for="opt in statusOptions"
+              v-for="opt in callFilterOptions"
               :key="opt.value"
               class="px-2 py-0.5 text-[11px] rounded-full border whitespace-nowrap transition-colors"
-              :class="statusFilter === opt.value
+              :class="activeFilter === opt.value
                 ? 'bg-accent-primary text-white border-accent-primary'
                 : 'bg-bg-elevated text-text-secondary border-border-subtle hover:border-accent-primary'"
-              @click="setFilter(opt.value)"
+              :title="opt.tooltip"
+              @click="setCallFilter(opt.value)"
             >
               {{ opt.label }}
             </button>
           </div>
+
           <LoadingSpinner v-if="callStore.loading && callStore.calls.length === 0" size="sm" />
-          <EmptyState v-else-if="callStore.calls.length === 0" title="No calls in this filter" icon="🔍" />
-          <div v-else class="space-y-1">
-            <RouterLink
-              v-for="call in callStore.calls"
-              :key="call.id"
-              :to="`/calls/${call.id}`"
-              class="block p-2 rounded hover:bg-bg-elevated transition-colors text-xs"
-            >
-              <div class="flex items-center justify-between gap-2 flex-wrap">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span :class="`badge-${call.status || 'suggestion'} shrink-0`">
-                    {{ statusIcon(call.status) }} {{ call.overall_score ?? '—' }}
-                  </span>
-                  <span v-if="call.hasHallucination" class="badge-fail shrink-0" title="Hallucination flagged in this call">
-                    ⚠ hallucination
-                  </span>
-                  <span class="text-text-secondary truncate">{{ call.topIssue || call.outcome }}</span>
-                </div>
-                <span class="font-mono text-text-muted text-[10px] shrink-0">
-                  {{ formatDateTime(call.call_timestamp) }}
-                </span>
+          <EmptyState v-else-if="callStore.calls.length === 0" title="No calls match" icon="🔍" />
+
+          <div v-else class="space-y-3">
+            <div v-for="group in callGroups" :key="group.label">
+              <!-- Day-grouping header (skipped when sorted by score/duration since
+                   the dates won't be contiguous and grouping adds noise) -->
+              <div
+                v-if="showDayGroups"
+                class="text-[10px] uppercase tracking-wide text-text-muted font-semibold mb-1.5 px-1"
+              >
+                {{ group.label }}
               </div>
-            </RouterLink>
+              <div class="space-y-1.5">
+                <RouterLink
+                  v-for="call in group.calls"
+                  :key="call.id"
+                  :to="`/calls/${call.id}`"
+                  class="block rounded-card hover:bg-bg-elevated transition-colors text-xs overflow-hidden border-l-4"
+                  :class="call.hasHallucination
+                    ? 'border-l-fail-text bg-fail/5'
+                    : 'border-l-transparent'"
+                >
+                  <!-- Layer 2: visual prominence banner for hallucinated calls.
+                       Tooltip surfaces the most concerning claim (Layer 3). -->
+                  <div
+                    v-if="call.hasHallucination"
+                    class="px-3 py-1 bg-fail/15 text-fail-text font-semibold border-b border-fail-text/30 flex items-center gap-2"
+                    :title="call.topHallucinationQuote
+                      ? `Most concerning unverified claim: \&quot;${call.topHallucinationQuote}\&quot;\n\nClick to review all ${call.unverifiedClaimsCount} claim${call.unverifiedClaimsCount > 1 ? 's' : ''}.`
+                      : 'Click to review the unverified claims in this call'"
+                  >
+                    <span class="shrink-0">⚠</span>
+                    <span class="shrink-0">
+                      {{ call.unverifiedClaimsCount }} unverified
+                      claim{{ call.unverifiedClaimsCount > 1 ? 's' : '' }}
+                    </span>
+                    <span v-if="call.topHallucinationQuote" class="font-normal text-text-secondary truncate min-w-0">
+                      — &ldquo;{{ call.topHallucinationQuote }}&rdquo;
+                    </span>
+                  </div>
+
+                  <div class="p-2.5 space-y-1">
+                    <!-- Line 1: status, score, caller, duration, time-ago -->
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span :class="`badge-${call.status || 'suggestion'} shrink-0`">
+                        {{ statusIcon(call.status) }} {{ call.overall_score ?? '—' }}/100
+                      </span>
+                      <span v-if="call.caller_number" class="font-mono text-text-secondary shrink-0">
+                        📞 {{ call.caller_number }}
+                      </span>
+                      <span v-if="call.duration" class="font-mono text-text-muted shrink-0">
+                        ⏱ {{ formatDuration(call.duration) }}
+                      </span>
+                      <span
+                        class="font-mono text-text-muted text-[10px] ml-auto shrink-0"
+                        :title="formatDateTime(call.call_timestamp)"
+                      >
+                        {{ relativeTime(call.call_timestamp) }}
+                      </span>
+                    </div>
+                    <!-- Line 2: top issue + use-actions badge -->
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span
+                        class="text-text-secondary flex-1 min-w-0 truncate"
+                        :title="call.topIssue || call.outcome || ''"
+                      >
+                        {{ call.topIssue || call.outcome || 'Clean — no issues flagged' }}
+                      </span>
+                      <span
+                        v-if="call.useActionsCount > 0"
+                        class="badge-warning shrink-0"
+                        title="Moments flagged for human follow-up — open call to see details"
+                      >
+                        ⚡ {{ call.useActionsCount }}
+                        use action{{ call.useActionsCount > 1 ? 's' : '' }}
+                      </span>
+                    </div>
+                  </div>
+                </RouterLink>
+              </div>
+            </div>
+
+            <div v-if="callStore.hasMore" class="pt-1">
+              <button
+                class="w-full text-xs py-2 rounded-card border border-border-subtle text-text-secondary hover:text-text-primary hover:border-accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="callStore.loadingMore"
+                @click="callStore.loadMore"
+              >
+                {{ callStore.loadingMore
+                  ? 'Loading…'
+                  : `⬇ Load ${callStore.totalCalls - callStore.calls.length} more` }}
+              </button>
+            </div>
           </div>
         </section>
       </template>
@@ -418,7 +528,6 @@ import { onMounted, watch, computed, ref } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useAgentStore } from '@/stores/agentStore'
 import { useCallStore } from '@/stores/callStore'
-import client from '@/api/client'
 import AppShell from '@/components/AppShell.vue'
 import BackLink from '@/components/BackLink.vue'
 import HealthDonut from '@/components/HealthDonut.vue'
@@ -445,30 +554,77 @@ const hasKpiScores = computed(() =>
 )
 
 const rangeDays = ref(30)
-const statusFilter = ref('all')
-const statusOptions = [
-  { value: 'all',     label: 'All' },
-  { value: 'pass',    label: '✓ Pass' },
-  { value: 'warning', label: '⚠ Warn' },
-  { value: 'fail',    label: '✗ Fail' },
+
+// V5.9 — calls list controls. Chips map to (status, flag) pairs so we can
+// express "Pass status" and "calls with unverified claims" with one model.
+const CALL_PAGE_SIZE = 20
+const activeFilter = ref('all')
+const sortBy = ref('newest')
+const searchInput = ref('')
+const callFilterOptions = [
+  { value: 'all',         label: 'All',           status: 'all',     flag: null,          tooltip: 'All calls' },
+  { value: 'pass',        label: '✓ Pass',        status: 'pass',    flag: null,          tooltip: 'Calls that passed all KPI thresholds' },
+  { value: 'warning',     label: '⚠ Warn',        status: 'warning', flag: null,          tooltip: 'Borderline calls — some KPIs missed threshold' },
+  { value: 'fail',        label: '✗ Fail',        status: 'fail',    flag: null,          tooltip: 'Calls that failed overall scoring' },
+  { value: 'unverified',  label: '⚠ Unverified',  status: 'all',     flag: 'unverified',  tooltip: 'Calls where the agent made unverified factual claims — brand/legal risk' },
+  { value: 'use_actions', label: '⚡ Use Actions', status: 'all',     flag: 'use_actions', tooltip: 'Calls with moments flagged for human follow-up' },
 ]
+
+// Day-grouping only makes sense for chronological sorts. Score/duration sorts
+// would scatter dates → grouping would be visual noise.
+const showDayGroups = computed(() => sortBy.value === 'newest' || sortBy.value === 'oldest')
+
+const callGroups = computed(() => {
+  if (!showDayGroups.value) {
+    return [{ label: '', calls: callStore.calls }]
+  }
+  const today = startOfDay(new Date())
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
+  const groups = new Map()
+  for (const c of callStore.calls) {
+    const label = c.call_timestamp ? dayLabel(new Date(c.call_timestamp), today, yesterday) : 'Unknown date'
+    if (!groups.has(label)) groups.set(label, { label, calls: [] })
+    groups.get(label).calls.push(c)
+  }
+  return [...groups.values()]
+})
 
 async function loadAll() {
   const id = route.params.id
   // V5.5 — pass days param so aggregates respect the period selector
   await agentStore.fetchAgent(id, { days: rangeDays.value })
   agentStore.fetchInsights(id)
-  await callStore.fetchCalls(id, { limit: 20, status: statusFilter.value })
+  await applyCallFilters()
 }
 
-function setFilter(value) {
-  statusFilter.value = value
-  callStore.fetchCalls(route.params.id, { limit: 20, status: value })
+function applyCallFilters() {
+  const f = callFilterOptions.find((o) => o.value === activeFilter.value) || callFilterOptions[0]
+  return callStore.fetchCalls(route.params.id, {
+    limit:  CALL_PAGE_SIZE,
+    status: f.status,
+    flag:   f.flag,
+    sort:   sortBy.value,
+    search: searchInput.value,
+  })
+}
+
+function setCallFilter(value) {
+  activeFilter.value = value
+  applyCallFilters()
+}
+
+// Debounce search so we don't refetch on every keystroke
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(applyCallFilters, 300)
 }
 
 onMounted(loadAll)
 watch(() => route.params.id, () => {
-  statusFilter.value = 'all'
+  activeFilter.value = 'all'
+  sortBy.value = 'newest'
+  searchInput.value = ''
   loadAll()
 })
 
@@ -511,21 +667,47 @@ function statusIcon(s) {
   return '○'
 }
 
-// V5.5 — date + time so user can identify the call faster ("Jun 9 14:32")
+// Tooltip variant — full date+time so hovering the row gives precise context
 function formatDateTime(ts) {
   if (!ts) return ''
   const d = new Date(ts)
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
-         ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+         ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
 
+// Visible time-ago label — broader range so it covers "just now" up to >7d
 function relativeTime(iso) {
   if (!iso) return ''
   const ms = Date.now() - new Date(iso).getTime()
-  const min = ms / 60000
-  if (min < 60)        return `${Math.round(min)}m ago`
-  if (min < 60 * 24)   return `${Math.round(min / 60)}h ago`
-  return `${Math.round(min / (60 * 24))}d ago`
+  if (Number.isNaN(ms)) return ''
+  const sec = Math.round(ms / 1000)
+  if (sec < 60)        return 'just now'
+  const min = Math.round(sec / 60)
+  if (min < 60)        return `${min}m ago`
+  const hr = Math.round(min / 60)
+  if (hr < 24)         return `${hr}h ago`
+  const day = Math.round(hr / 24)
+  if (day < 7)         return `${day}d ago`
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+// "2:14" for a 134-second call. Returns "—" for missing/invalid input.
+function formatDuration(seconds) {
+  const n = Number(seconds)
+  if (!Number.isFinite(n) || n < 0) return '—'
+  const m = Math.floor(n / 60)
+  const s = Math.floor(n % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function startOfDay(d) {
+  const x = new Date(d); x.setHours(0, 0, 0, 0); return x
+}
+function dayLabel(d, today, yesterday) {
+  const day = startOfDay(d)
+  if (day.getTime() === today.getTime())     return 'Today'
+  if (day.getTime() === yesterday.getTime()) return 'Yesterday'
+  return day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
 // V5.5 — Use Action type → icon. Matches the categories used in analyses.

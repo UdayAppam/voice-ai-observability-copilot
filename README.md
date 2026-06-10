@@ -1,7 +1,7 @@
 # Voice Agent Flywheel
 
 **Repo**: https://github.com/UdayAppam/voice-agent-flywheel
-**Stable tag**: `v5.8` (full Core Functionality coverage + per-agent observability surfaces + perf optimization)
+**Stable tag**: `v5.9` (full Core Functionality coverage + per-agent observability surfaces + perf optimization + calls-list redesign with end-user-friendly hallucination treatment)
 
 An observability + improvement copilot for HighLevel Voice AI agents. Built for the FSB Q226 hiring assignment.
 

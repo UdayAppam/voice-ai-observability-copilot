@@ -265,7 +265,22 @@ router.get('/:id', (req, res, next) => {
   }
 })
 
-// GET /api/agents/:id/calls?page=1&limit=20&status=all
+// GET /api/agents/:id/calls?page=1&limit=20&status=all&flag=&sort=newest&search=
+//
+// V5.9 — calls list redesign.
+//
+// New behaviour:
+//   • status: pass | warning | fail | all   (existing — scorecard outcome)
+//   • flag:   unverified | use_actions       (overlay — separate signals from status)
+//   • sort:   newest | oldest | score_asc | score_desc | duration_asc | duration_desc
+//   • search: free-text against caller_number + recommendation titles
+//   • each row now returns hasHallucination, unverifiedClaimsCount,
+//     topHallucinationQuote, useActionsCount — so the UI can render the
+//     3-layer hallucination treatment without a second roundtrip.
+//
+// Existing fix: the previous response did NOT include hallucination info,
+// so the inline `⚠ hallucination` badge in AgentDetailView never rendered.
+// We now expose hasHallucination + the count + the most concerning claim.
 router.get('/:id/calls', (req, res, next) => {
   try {
     const agent = db.prepare('SELECT id FROM agents WHERE id = ?').get(req.params.id)
@@ -273,40 +288,107 @@ router.get('/:id/calls', (req, res, next) => {
 
     const page = Math.max(1, parseInt(req.query.page) || 1)
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20))
-    const status = req.query.status || 'all'
+    const status = ['pass', 'warning', 'fail', 'all'].includes(req.query.status) ? req.query.status : 'all'
+    const flag = ['unverified', 'use_actions'].includes(req.query.flag) ? req.query.flag : null
+    const sort = ['newest', 'oldest', 'score_asc', 'score_desc', 'duration_asc', 'duration_desc']
+      .includes(req.query.sort) ? req.query.sort : 'newest'
+    const search = (req.query.search || '').trim().slice(0, 80)
     const offset = (page - 1) * limit
 
-    const statusFilter = status === 'all' ? '' : `AND a.status = '${status}'`
+    // WHERE clauses built defensively. Status uses parameter binding to be
+    // safe against future expansion; same for search.
+    const clauses = ['c.agent_id = ?']
+    const params = [req.params.id]
+    if (status !== 'all')           { clauses.push('a.status = ?');                params.push(status) }
+    if (flag === 'unverified')      { clauses.push("a.hallucinations_json != '[]' AND a.hallucinations_json IS NOT NULL") }
+    if (flag === 'use_actions')     { clauses.push("a.use_actions_json != '[]' AND a.use_actions_json IS NOT NULL") }
+    if (search) {
+      // matches caller number or anything inside the recommendations_json
+      // (cheap LIKE — the top-issue title lives in there, so this gives users
+      // a "find by issue text" without a dedicated index)
+      clauses.push('(c.caller_number LIKE ? OR a.recommendations_json LIKE ?)')
+      const needle = `%${search}%`
+      params.push(needle, needle)
+    }
+    const whereSql = clauses.join(' AND ')
+
+    const orderBy = {
+      newest:        'c.call_timestamp DESC',
+      oldest:        'c.call_timestamp ASC',
+      score_asc:     'a.overall_score ASC NULLS LAST, c.call_timestamp DESC',
+      score_desc:    'a.overall_score DESC NULLS LAST, c.call_timestamp DESC',
+      duration_asc:  'c.duration ASC, c.call_timestamp DESC',
+      duration_desc: 'c.duration DESC, c.call_timestamp DESC',
+    }[sort]
 
     const total = db.prepare(`
       SELECT COUNT(*) as n FROM calls c
       LEFT JOIN analyses a ON a.call_id = c.id
-      WHERE c.agent_id = ? ${statusFilter}
-    `).get(req.params.id).n
+      WHERE ${whereSql}
+    `).get(...params).n
 
     const calls = db.prepare(`
       SELECT
         c.id, c.agent_id, c.caller_number, c.duration, c.outcome,
         c.analysis_status, c.call_timestamp,
         a.overall_score, a.status,
-        a.recommendations_json
+        a.recommendations_json, a.hallucinations_json, a.use_actions_json
       FROM calls c
       LEFT JOIN analyses a ON a.call_id = c.id
-      WHERE c.agent_id = ? ${statusFilter}
-      ORDER BY c.call_timestamp DESC
+      WHERE ${whereSql}
+      ORDER BY ${orderBy}
       LIMIT ? OFFSET ?
-    `).all(req.params.id, limit, offset)
+    `).all(...params, limit, offset)
 
     const result = calls.map((c) => {
-      const topIssue = c.recommendations_json
-        ? (JSON.parse(c.recommendations_json)[0]?.title ?? null)
-        : null
-      // eslint-disable-next-line no-unused-vars
-      const { recommendations_json: _rj, ...rest } = c
-      return { ...rest, topIssue }
+      let topIssue = null
+      if (c.recommendations_json) {
+        try { topIssue = JSON.parse(c.recommendations_json)[0]?.title ?? null } catch { /* ignore */ }
+      }
+
+      // Parse hallucinations / use_actions once and derive the small summary
+      // the UI needs. Highest-confidence claim becomes the hover-tooltip text.
+      //
+      // Hallucination JSON shape (per analyses.hallucinations_json):
+      //   { turnIndex, type, claim, confidence: 'low'|'medium'|'high', impact }
+      // Older mock records may instead carry `quote`/`statement` keys, so we
+      // fall back through all three for resilience.
+      const CONFIDENCE_RANK = { high: 3, medium: 2, low: 1 }
+      let unverifiedClaimsCount = 0
+      let topHallucinationQuote = null
+      if (c.hallucinations_json && c.hallucinations_json !== '[]') {
+        try {
+          const list = JSON.parse(c.hallucinations_json) || []
+          unverifiedClaimsCount = list.length
+          if (list.length > 0) {
+            const ranked = [...list].sort(
+              (a, b) => (CONFIDENCE_RANK[b.confidence] || 0) - (CONFIDENCE_RANK[a.confidence] || 0)
+            )
+            const top = ranked[0]
+            topHallucinationQuote = top?.claim || top?.quote || top?.statement || null
+          }
+        } catch { /* ignore parse failure */ }
+      }
+
+      let useActionsCount = 0
+      if (c.use_actions_json && c.use_actions_json !== '[]') {
+        try { useActionsCount = (JSON.parse(c.use_actions_json) || []).length } catch { /* ignore */ }
+      }
+
+      /* eslint-disable no-unused-vars */
+      const { recommendations_json: _rj, hallucinations_json: _hj, use_actions_json: _ua, ...rest } = c
+      /* eslint-enable no-unused-vars */
+      return {
+        ...rest,
+        topIssue,
+        hasHallucination: unverifiedClaimsCount > 0,
+        unverifiedClaimsCount,
+        topHallucinationQuote,
+        useActionsCount,
+      }
     })
 
-    res.json({ total, page, limit, calls: result })
+    res.json({ total, page, limit, sort, status, flag, search, calls: result })
   } catch (err) {
     next(err)
   }

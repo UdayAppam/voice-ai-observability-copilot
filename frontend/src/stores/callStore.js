@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import client from '@/api/client'
 
 export const useCallStore = defineStore('calls', () => {
@@ -8,24 +8,56 @@ export const useCallStore = defineStore('calls', () => {
   const currentCall = ref(null)
   const currentAnalysis = ref(null)
   const loading = ref(false)
+  const loadingMore = ref(false)
   const error = ref(null)
   const currentPage = ref(1)
+  const currentLimit = ref(20)
+  const lastQuery = ref({ agentId: null, status: 'all', flag: null, sort: 'newest', search: '' })
 
-  async function fetchCalls(agentId, { page = 1, limit = 20, status = 'all' } = {}) {
-    loading.value = true
+  // V5.9 — fetchCalls accepts append + sort/search/flag.
+  // Default replaces (used when filters change). append=true is what the Load More button uses.
+  async function fetchCalls(agentId, {
+    page = 1, limit = 20, status = 'all', flag = null, sort = 'newest', search = '', append = false,
+  } = {}) {
+    if (append) loadingMore.value = true
+    else loading.value = true
     error.value = null
     try {
       const { data } = await client.get(`/agents/${agentId}/calls`, {
-        params: { page, limit, status },
+        params: { page, limit, status, flag: flag || undefined, sort, search: search || undefined },
       })
-      calls.value = data.calls
+      if (append) {
+        // Dedupe defensively in case of overlapping pages (filter changes mid-flight)
+        const seen = new Set(calls.value.map((c) => c.id))
+        calls.value = [...calls.value, ...data.calls.filter((c) => !seen.has(c.id))]
+      } else {
+        calls.value = data.calls
+      }
       totalCalls.value = data.total
       currentPage.value = data.page
+      currentLimit.value = data.limit
+      lastQuery.value = { agentId, status, flag, sort, search }
     } catch (err) {
       error.value = err
     } finally {
       loading.value = false
+      loadingMore.value = false
     }
+  }
+
+  // hasMore tells the view whether to show the Load more button
+  const hasMore = computed(() => calls.value.length < totalCalls.value)
+
+  async function loadMore() {
+    if (!hasMore.value || loadingMore.value) return
+    const q = lastQuery.value
+    if (!q.agentId) return
+    await fetchCalls(q.agentId, {
+      page: currentPage.value + 1,
+      limit: currentLimit.value,
+      status: q.status, flag: q.flag, sort: q.sort, search: q.search,
+      append: true,
+    })
   }
 
   async function fetchCall(id) {
@@ -96,9 +128,12 @@ export const useCallStore = defineStore('calls', () => {
     currentCall,
     currentAnalysis,
     loading,
+    loadingMore,
     error,
     currentPage,
+    hasMore,
     fetchCalls,
+    loadMore,
     fetchCall,
     reAnalyze,
     simulateNewCall,

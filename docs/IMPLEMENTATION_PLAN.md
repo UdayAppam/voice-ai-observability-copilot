@@ -344,7 +344,7 @@ In rough priority order by customer impact:
 
 ---
 
-## 6. Acceptance criteria — current ship (v5.8)
+## 6. Acceptance criteria — current ship (v5.9)
 
 All passing as of 2026-06-10:
 
@@ -668,7 +668,68 @@ PM + tech-architect audit found 2 real inconsistencies between what the UI claim
 
 **Verified** — `grep` audit confirms no remaining user-visible "Patterns" labels in frontend templates. Both endpoint responses now return aligned threshold values (60/30).
 
-**Architect audit summary** (also captured in IMPLEMENTATION_PLAN audits across V4.3, V4.4, V5.4, V5.8):
+---
+
+### Phase 5.9 — Agent Detail calls list redesign + hallucination prominence
+
+PM-grade end-user audit of the Agent Detail page surfaced one real bug and a list of usability gaps that compounded into "I can't quickly see what's wrong with this agent."
+
+**Bug — pagination silently missing**
+- Header on the calls section said `Calls (47)` (from `callStore.totalCalls`) but the list rendered only 20 rows.
+- Root cause: `callStore.fetchCalls` defaulted `limit=20`, the backend respected it, but the view had no Load More / page navigation / infinite scroll. Users genuinely thought 27 calls were missing.
+- Secondary bug found during audit: the template referenced `call.hasHallucination` but the backend's `/agents/:id/calls` response never returned it — so the inline `⚠ hallucination` badge had been silently dead since the field was added.
+
+**End-user UX gaps catalogued** (10 total):
+1. Truncated to 20 of N (the bug)
+2. No call duration shown — can't distinguish 30s hang-up from 5min conversation
+3. No caller phone inline — can't spot repeat callers without opening each call
+4. No Use Actions count badge — needs-follow-up signal hidden
+5. No sort options — only "newest" implicitly; no "lowest score first" triage
+6. Absolute date+time format ("Jun 9 14:32") harder to scan than "2h ago"
+7. No day grouping — Friday's bad cluster invisible
+8. Hallucination jargon ("hallucination") instead of customer-facing "unverified claim"
+9. No hallucination/use-actions filter chips — highest-stakes signals had no shortcut
+10. No search — can't find a specific call by number or issue text
+
+**Fix — Option B (PM-recommended scope)** ships the bug fix + a full usability redesign:
+
+**Backend (`GET /agents/:id/calls`)**:
+- New query params: `sort` (newest/oldest/score_asc|desc/duration_asc|desc), `flag` (unverified/use_actions), `search` (matches caller_number OR top-issue text)
+- Each row now returns `hasHallucination`, `unverifiedClaimsCount`, `topHallucinationQuote` (highest-confidence claim text), `useActionsCount`
+- WHERE clauses parameter-bound (safer than the previous string-interpolated `statusFilter`)
+
+**Store (`callStore`)**:
+- `fetchCalls` accepts `append`, `sort`, `flag`, `search`
+- New `hasMore` getter (calls.length < totalCalls) and `loadMore()` helper
+- Search/page refetches dedupe by id in case of mid-flight filter changes
+
+**View (`AgentDetailView.vue` — calls section)**:
+- Sort dropdown · Search box (300ms debounce) · Filter chips: All / Pass / Warn / Fail / ⚠ Unverified / ⚡ Use Actions
+- Day-grouping headers (Today / Yesterday / Mon Jun 8) for chronological sorts; suppressed for score/duration sorts (would scatter dates)
+- Card-style 2-line rows: Line 1 = status + score + 📞 caller + ⏱ duration + time-ago; Line 2 = top issue + ⚡ N use actions badge
+- "Load N more" button at bottom of list
+- Header now reads `Calls — showing X of N` (truth-in-counts, removes the original confusion)
+
+**3-layer hallucination treatment** (PM call: this signal carries brand/legal risk — it must visually outweigh other flags):
+- **Layer 1 — plain language**: `⚠ hallucination` → `⚠ N unverified claims` (matches V3 Call Detail vocabulary)
+- **Layer 2 — visual prominence**: red left border (`border-l-fail-text`) + amber banner above the row body. Clean calls keep a transparent border so risky ones pop on scan.
+- **Layer 3 — hover tooltip**: surfaces the most concerning claim quote (`Most concerning unverified claim: "We're HIPAA-certified…"`), so triage doesn't require opening every call.
+
+**Hero badge alignment**: Agent Detail hero's `⚠ {n} hallucinations` rewritten as `⚠ {n} calls with unverified claims` so terminology is consistent across the page.
+
+**Verified against test DB (`reg-frontdoor` = 47 calls)**:
+```
+GET /api/agents/reg-frontdoor/calls?limit=20&page=1 → 20 rows, total=47
+GET /api/agents/reg-frontdoor/calls?limit=20&page=2 → 20 rows, total=47
+GET /api/agents/reg-frontdoor/calls?limit=20&page=3 →  7 rows, total=47   ✓ adds to 47
+GET …/calls?sort=score_asc       → lowest scores first (13, 14, 14, 14)
+GET …/calls?sort=duration_desc   → longest first (178s, 171s, 168s)
+GET …/calls?search=DEMO-1        → 2 calls matched by caller_number
+GET .../reg-maya/calls?flag=unverified → 8 calls, top quote: "We're fully HIPAA-certified, SOC 2 Type II audited…"
+GET .../reg-grace/calls?flag=use_actions → 39 calls with action counts
+```
+
+**Architect audit summary** (also captured in IMPLEMENTATION_PLAN audits across V4.3, V4.4, V5.4, V5.8, V5.9):
 - ✅ Funnel math + lifecycle sentence math match implementation
 - ✅ Stage card `producesRows` correctly maps to funnel rows
 - ✅ Apply chain (V4 + V4.3 fix) verified end-to-end on both DBs
@@ -741,6 +802,9 @@ A full audit at v5.8 cross-checked every dashboard number against its implementa
 | 8 | `applied_prompt_version_id` was null on every V4 apply → measurement chain silently broken | Fixed V4.3 — `ApplyRecommendationService` now records prompt version + writes ID; 3 stuck recs backfilled |
 | 9 | Significance filter on Measure narrative said "0 significantly" even when there were significant improvements | Fixed V4.4 — `allMeasured` query was missing `after_sample_size` column |
 | 10 | Actions surface said nothing about whether resolving them improves the agent | Fixed V5.0 — escalation auto-spawn closes the loop; subtitle clarifies "operational queue" |
+| 11 | Agent Detail header said "Calls (47)" but the list only rendered 20 — no pagination UI even though backend supported `?page=&limit=` | Fixed V5.9 — Load More button + filter chips + day grouping + sort/search; header rewritten as "showing X of N" |
+| 12 | `call.hasHallucination` referenced in the calls-list template but the backend never returned it → badge silently dead since the field was introduced | Fixed V5.9 — backend now derives `hasHallucination`, `unverifiedClaimsCount`, `topHallucinationQuote` per row from `hallucinations_json` |
+| 13 | "Hallucination" jargon shown to end users instead of the customer-facing "unverified claim" vocabulary used on Call Detail | Fixed V5.9 — all calls-list + hero references unified on "unverified claim(s)" with 3-layer treatment (label, visual prominence, hover-quote) |
 
 ### Reproducible verification
 
