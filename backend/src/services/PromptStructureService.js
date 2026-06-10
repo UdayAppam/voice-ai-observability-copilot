@@ -21,12 +21,44 @@ const logger = require('../logger')
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'
 
-const PARSER_VERSION = '1.0'
+// V5.7 — parser version 2.0 switches to offset-based LLM output (LLM returns
+// char offsets, backend slices verbatim text). ~4-5× faster median latency on
+// large prompts (benchmark: 47s → 9-18s). Bumping the version invalidates any
+// v1.0 cached rows, which get auto-overwritten on next read.
+const PARSER_VERSION = '2.0'
 
-// JSON schema for the parser. Sections are name + summary + the exact verbatim
-// text slice from the original prompt — we use the verbatim text to splice the
-// modified section back in without character-offset drift.
-const PARSE_SCHEMA = {
+// Coverage threshold for accepting offset-based output. The LLM sometimes
+// returns header-only sections that don't span the full prompt — we require
+// at least 70% total coverage; otherwise retry, then fall back to verbatim.
+const OFFSET_COVERAGE_THRESHOLD = 0.7
+
+// JSON schema — OFFSET variant (production path).
+// Output: ~80 chars per section vs ~600 for verbatim. Drives the latency win.
+const PARSE_SCHEMA_OFFSETS = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['sections'],
+  properties: {
+    sections: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'name', 'summary', 'startOffset', 'endOffset'],
+        properties: {
+          id:          { type: 'string',  description: 'lowercase snake-case identifier' },
+          name:        { type: 'string',  description: 'human-readable section name' },
+          summary:     { type: 'string',  description: 'one-line description of what this section governs' },
+          startOffset: { type: 'integer', description: 'inclusive 0-based char index where this section begins' },
+          endOffset:   { type: 'integer', description: 'exclusive char index where this section ends' },
+        },
+      },
+    },
+  },
+}
+
+// JSON schema — VERBATIM variant (fallback when offset validation fails twice).
+const PARSE_SCHEMA_VERBATIM = {
   type: 'object',
   additionalProperties: false,
   required: ['sections'],
@@ -38,10 +70,10 @@ const PARSE_SCHEMA = {
         additionalProperties: false,
         required: ['id', 'name', 'summary', 'text'],
         properties: {
-          id:      { type: 'string', description: 'lowercase snake-case identifier, e.g. "persona", "qualification_script"' },
-          name:    { type: 'string', description: 'human-readable section name, e.g. "Persona", "Qualification Script"' },
-          summary: { type: 'string', description: 'one-line description of what this section governs' },
-          text:    { type: 'string', description: 'EXACT verbatim text from the original prompt that belongs to this section. Must be a contiguous substring. Do not paraphrase.' },
+          id:      { type: 'string' },
+          name:    { type: 'string' },
+          summary: { type: 'string' },
+          text:    { type: 'string', description: 'EXACT verbatim text — must be a contiguous substring of the prompt' },
         },
       },
     },
@@ -77,7 +109,7 @@ class PromptStructureService {
       }
     }
 
-    const sections = await this._llmParse(promptText, agentGoal)
+    const sections = await this._parseWithSafeguards(promptText, agentGoal)
 
     if (promptVersionId) {
       // INSERT OR REPLACE — if parser_version changed we overwrite the stale cache
@@ -94,33 +126,153 @@ class PromptStructureService {
     return sections
   }
 
-  static async _llmParse(promptText, agentGoal) {
+  // V5.7 — safeguarded parsing. Tries the fast offset approach up to 2 times.
+  // If both attempts produce low coverage (LLM didn't cover the whole prompt),
+  // falls back to the slower-but-deterministic verbatim approach.
+  //
+  // Fallback rate is logged at INFO level so we can monitor in production —
+  // if it climbs above ~25%, the offset approach isn't working and we should
+  // revisit prompt engineering or schema design.
+  static async _parseWithSafeguards(promptText, agentGoal) {
+    const t0 = Date.now()
+    // Attempt 1 — offset schema
+    let attempt = 1
+    let lastResult = null
+    while (attempt <= 2) {
+      try {
+        const offsetSections = await this._llmParseOffsets(promptText, agentGoal)
+        const validation = this._validateOffsets(offsetSections, promptText)
+        if (validation.ok) {
+          const sections = this._materialiseFromOffsets(offsetSections, promptText)
+          logger.info(
+            { sectionCount: sections.length, promptLen: promptText.length, attempt, latencyMs: Date.now() - t0, path: 'offsets', coverage: validation.coverage },
+            'PromptStructure: parsed (offset path)'
+          )
+          return sections
+        }
+        lastResult = validation
+        logger.warn(
+          { attempt, coverage: validation.coverage, issues: validation.issues.slice(0, 3) },
+          'PromptStructure: offset attempt failed validation, retrying'
+        )
+      } catch (err) {
+        logger.warn({ attempt, err: err.message }, 'PromptStructure: offset LLM call threw, retrying')
+      }
+      attempt++
+    }
+    // Both offset attempts failed — fall back to verbatim
+    logger.warn(
+      { promptLen: promptText.length, lastCoverage: lastResult?.coverage },
+      'PromptStructure: falling back to verbatim path (offset attempts exhausted)'
+    )
+    const sections = await this._llmParseVerbatim(promptText, agentGoal)
+    logger.info(
+      { sectionCount: sections.length, promptLen: promptText.length, latencyMs: Date.now() - t0, path: 'verbatim-fallback' },
+      'PromptStructure: parsed (verbatim fallback)'
+    )
+    return sections
+  }
+
+  // V5.7 — offset-based LLM call. ~5× faster than verbatim on large prompts
+  // because output token count drops from ~prompt_len to ~80 chars per section.
+  // Caller must validate offsets before trusting them — see _validateOffsets.
+  static async _llmParseOffsets(promptText, agentGoal) {
     const res = await openai.chat.completions.create({
       model: MODEL,
       temperature: 0,
       response_format: {
         type: 'json_schema',
-        json_schema: { name: 'parse_prompt_sections', strict: true, schema: PARSE_SCHEMA },
+        json_schema: { name: 'parse_prompt_sections', strict: true, schema: PARSE_SCHEMA_OFFSETS },
       },
       messages: [
         { role: 'system', content:
-          `You parse Voice AI agent prompts into named sections. ` +
-          `Typical sections in a Voice AI prompt: Persona, Goals, Script/Steps, ` +
-          `Tone Guidelines, Knowledge Base, Closing Instructions. ` +
-          `Identify what's actually present — don't invent sections. ` +
-          `For each section's "text" field: copy the EXACT verbatim characters from the ` +
-          `prompt (we splice modified sections back by finding this substring). ` +
-          `Sections must be contiguous and non-overlapping. The concatenation of all ` +
-          `sections' text should reconstruct the original prompt (with optional ` +
-          `whitespace between).` },
+          `You parse Voice AI agent prompts into named sections covering the ENTIRE prompt.\n\n` +
+          `STRICT RULES — every character of the prompt MUST belong to exactly one section:\n` +
+          `1. First section's startOffset MUST be 0.\n` +
+          `2. Each section's endOffset MUST equal the next section's startOffset (no gaps).\n` +
+          `3. Last section's endOffset MUST equal the total prompt length given to you.\n` +
+          `4. Sections must NOT overlap.\n` +
+          `5. A section spans from its header through to (but excluding) the next section's header.\n\n` +
+          `Typical sections in Voice AI prompts: Persona, Goals, Script/Steps, Tone Guidelines, ` +
+          `Knowledge Base, Closing Instructions, Handoff Rules. Identify what's actually present — ` +
+          `don't invent sections.\n\n` +
+          `Example: 1000-char prompt with 3 sections might be:\n` +
+          `  { id:"persona", startOffset:0,   endOffset:300 }\n` +
+          `  { id:"goals",   startOffset:300, endOffset:650 }\n` +
+          `  { id:"script",  startOffset:650, endOffset:1000 }\n` +
+          `Total span = 1000 = prompt length. No gaps. No overlaps.` },
         { role: 'user', content:
           (agentGoal ? `AGENT GOAL: ${agentGoal}\n\n` : '') +
           `FULL PROMPT (${promptText.length} chars):\n${promptText}` },
       ],
     })
-    const parsed = JSON.parse(res.choices[0].message.content)
-    logger.info({ sectionCount: parsed.sections.length, promptLen: promptText.length }, 'PromptStructure: parsed')
-    return parsed.sections
+    return JSON.parse(res.choices[0].message.content).sections
+  }
+
+  // V5.7 — validate offsets cover the prompt + are well-formed.
+  // Returns { ok, coverage, issues[] }. ok = true means safe to use.
+  static _validateOffsets(sections, promptText) {
+    const issues = []
+    if (!sections || sections.length === 0) {
+      return { ok: false, coverage: 0, issues: ['no sections returned'] }
+    }
+    let totalSpan = 0
+    let prevEnd = -1
+    for (const s of sections) {
+      if (s.startOffset < 0 || s.endOffset > promptText.length) {
+        issues.push(`section "${s.id}" out of bounds`)
+      }
+      if (s.endOffset <= s.startOffset) {
+        issues.push(`section "${s.id}" empty or negative span`)
+      }
+      if (prevEnd > -1 && s.startOffset < prevEnd) {
+        issues.push(`section "${s.id}" overlaps prior`)
+      }
+      totalSpan += Math.max(0, s.endOffset - s.startOffset)
+      prevEnd = s.endOffset
+    }
+    const coverage = totalSpan / promptText.length
+    const ok = issues.length === 0 && coverage >= OFFSET_COVERAGE_THRESHOLD
+    return { ok, coverage, issues }
+  }
+
+  // V5.7 — extract verbatim text from validated offsets via string slice.
+  // Downstream consumers (proposeInsertion, validators) expect the same
+  // { id, name, summary, text } shape as the original verbatim parser.
+  static _materialiseFromOffsets(offsetSections, promptText) {
+    return offsetSections.map((s) => ({
+      id:      s.id,
+      name:    s.name,
+      summary: s.summary,
+      text:    promptText.slice(s.startOffset, s.endOffset),
+    }))
+  }
+
+  // V5.7 — original verbatim parser, kept as a fallback for when offsets fail.
+  // Slower (LLM emits the full prompt as output tokens) but deterministic in
+  // coverage because the LLM is asked for substrings, not character math.
+  static async _llmParseVerbatim(promptText, agentGoal) {
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 0,
+      response_format: {
+        type: 'json_schema',
+        json_schema: { name: 'parse_prompt_sections', strict: true, schema: PARSE_SCHEMA_VERBATIM },
+      },
+      messages: [
+        { role: 'system', content:
+          `You parse Voice AI agent prompts into named sections. ` +
+          `Typical sections: Persona, Goals, Script/Steps, Tone Guidelines, ` +
+          `Knowledge Base, Closing Instructions. Identify what's actually present. ` +
+          `For each section's "text" field: copy the EXACT verbatim characters from the ` +
+          `prompt (must be a contiguous substring). Sections must be contiguous and ` +
+          `non-overlapping. Concatenated section texts should reconstruct the prompt.` },
+        { role: 'user', content:
+          (agentGoal ? `AGENT GOAL: ${agentGoal}\n\n` : '') +
+          `FULL PROMPT (${promptText.length} chars):\n${promptText}` },
+      ],
+    })
+    return JSON.parse(res.choices[0].message.content).sections
   }
 
   // ── proposeInsertion ───────────────────────────────────────────────────
