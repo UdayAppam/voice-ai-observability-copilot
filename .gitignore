@@ -42,5 +42,8 @@ Thumbs.db
 backend/scripts/regression/.last-seed-map.json
 
 
-# Local runtime artifacts (cloudflared pids, backend.log, tunnel.url)
-.runtime/
+# Runtime convenience scripts (.runtime/*.sh + README.md) are committed so
+# reviewers can clone-and-run; only the volatile artifacts are ignored.
+.runtime/*.log
+.runtime/*.pid
+.runtime/*.url
