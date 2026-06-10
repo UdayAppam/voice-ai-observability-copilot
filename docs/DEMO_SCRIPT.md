@@ -1,205 +1,212 @@
-# Demo Script (2-5 min Loom)
+# Demo script — Voice Agent Flywheel
 
-Story-driven walkthrough built around the FSB rubric: **Problem → Solution → Validation**. Every section ties back to a concrete agency-owner pain point and shows the working product solving it. V4 one-click apply is the climax, not a footnote.
+A conversational 4–5 minute walkthrough of the product, written the way I'd actually talk to a camera. The structure is **pain → the loop → measurement proof → how a fix actually ships** — every section is something I can demonstrate live, on real data, in real time.
 
-Target: **4 minutes** (range 3:30 – 4:45).
-
----
-
-## Before recording
-
-- [ ] Test DB populated (gives you the seeded scenarios with measured outcomes)
-      `bash .runtime/use-data.sh status` → test row should show ~4 agents · 14 calls
-      If empty: `bash .runtime/use-data.sh seed-test` (one-time, ~$0.10 OpenAI)
-- [ ] Start backend + tunnel on the **TEST DB** in one command:
-      `bash .runtime/run-persistent.sh restart --db=test`
-      Note the printed PUBLIC URL.
-- [ ] Open a second terminal alongside the browser — you'll use it ~2:30 for the live-data toggle
-- [ ] Browser zoom 100%, window 1440×900, no other tabs visible, address bar clean (no PATs in URL)
-- [ ] Dismiss the Overview welcome card before recording (or leave it as part of the opener — your call)
-- [ ] Mic level checked, Loom ready
+This script is what I read off-screen while recording. The tone is deliberately informal — the reviewer should feel like they're being shown something working, not pitched at.
 
 ---
 
-## Script — 4-minute story arc
+## Before I press record
 
-### ACT 1 · THE PROBLEM (0:00 – 0:30)
+A short pre-flight, because the demo only flows if the data does:
 
-#### 0:00 — Hook with concrete pain (15s)
-> "If you're a HighLevel agency running 5, 10, 20 Voice AI agents for your clients, today there's no way to know if any of them is hallucinating prices, missing leads, or going off-script — unless you listen to every call. Most agency owners don't have that time. Issues compound silently."
+- [ ] Decide which DB I'm opening on — the test DB has the cleanest measurement-proof story; the live DB has real HighLevel calls. I open on test, switch to live around 3:50.
+  ```bash
+  bash .runtime/use-data.sh status        # see what's in each
+  bash .runtime/use-data.sh test          # start on test
+  ```
+- [ ] Persistent server + tunnel up:
+  ```bash
+  bash .runtime/run-persistent.sh restart --db=test
+  ```
+  Wait for the printed `PUBLIC URL` and confirm it loads `/dashboard/` in an incognito window.
+- [ ] Window cleanup — 1440×900, 100% zoom, no other tabs visible, no PAT in the URL bar, Slack and notifications muted.
+- [ ] Browser already navigated to the Overview page so the first frame the reviewer sees is the dashboard, not a loading state.
+- [ ] Mic check, Loom ready, water nearby.
 
-[Open the dashboard URL — full-screen]
-
-#### 0:15 — Scale of the problem in numbers (15s)
-> "Here's a sample sub-account: 4 agents, 14 calls in the last month. To audit those by hand is roughly 5 hours of listening. Multiply that across an agency with 20 agents — nobody does it. **AI Copilot does it for you, in seconds, every time a call lands.**"
-
-[Point at the hero metric cards on Overview]
-
----
-
-### ACT 2 · MONITOR + ANALYZE (0:30 – 2:15) — the FSB Core Functionality
-
-#### 0:30 — Monitor: every call auto-scored (30s)
-[Stay on Overview]
-
-> "This is the **Monitor** half. Every Voice AI call is ingested from HighLevel, scored against the agent's own KPIs — Call Completion, Script Adherence, Objection Handling, six in total — and rolled up here. The WHY line at the top of the Monitor strip tells me what's moving: **Objection Handling fell hardest this period.** I don't have to dig — the dashboard already opened the right rock."
-
-[Point at MonitorAnalyzeHero · then briefly the AgentStatusStrip]
-
-#### 1:00 — The Validation Flywheel (45s) — the FSB framing concept
-[Click ♻️ Flywheel tab — opens to a clean 2-hero layout]
-
-> "And here's the FSB's framing — the **Validation Flywheel**. But notice what's NOT here: a wall of charts. The page answers two questions in 3 seconds. Hero 1: **+8 significant improvements** — that's the headline. Hero 2: **What's blocking us next.** Below, a one-line lifecycle: **11 issues → 25 recs generated → 9 applied → 9 measured → 8 improved** — the loop in a sentence."
-
-[Point at the headline metric and the lifecycle sentence — the leak step shows in red if any]
-
-> "Unlike a typical analytics tool, we don't stop at 'here's a recommendation.' We **causally measure** — Δ≥2 points AND n≥3 calls — whether each fix actually improved scores. **8 of 9 measured outcomes** improved significantly. Cycle time: **1.1 days** from issue detected to fix applied. The Flywheel closes — with significance, not just claims."
-
-[Optionally click "▸ Drill in" to reveal funnel + per-stage operational cards if pacing allows]
-
-#### 1:45 — Patterns: per-agent rollup, no fake duplicates (30s)
-[Click 🔍 Patterns]
-
-> "Issues recur across agents. Each pattern card now shows an **apply-state pill**: this one says **Applied 1 of 2 — 1 still needed**. That's because the same recommendation is applied for Maya but still active for FrontDoor — not a duplicate, it's per-agent work. Expand the card and the view **splits**: '⚠ Still needs apply on FrontDoor AI' with an inline [Apply] button, plus '✓ Already applied on Maya' below for context. The product knows the difference between cross-agent work and a stale duplicate — and semantic dedup catches near-duplicate titles like 'Capture Caller Details' ≈ 'Capture Caller Information' before they even appear."
-
-[Expand one partial-state pattern to show the split sections]
+If anything in the prep feels off (stale data, tunnel slow, server logging warnings) I stop and fix it. The script depends on the product feeling alive.
 
 ---
 
-### ACT 3 · ACT — V4 ONE-CLICK APPLY (2:15 – 3:30) — the climax
+## The script
 
-#### 2:15 — The wow moment: see the actual issue first (30s)
-[Click into one of the failing calls — pick S4 / Maya for the hallucination card, or FrontDoor for a pattern-driven one]
+### 0:00 — Cold open: the pain in plain language (30 seconds)
 
-> "Before I fix it, let me see what actually went wrong on a call. The transcript is annotated — and this red card here is the one I worry about most: **the AI agent made an unverified claim.** Said we're HIPAA-certified, SOC 2 audited — those aren't in the agent's script. It made them up. That's brand damage and legal exposure in one turn."
+> "If you run a HighLevel agency and you've deployed a Voice AI agent for one of your clients — let alone five or ten — there's a problem nobody talks about. You have no way to know if the agent is hallucinating, missing leads, or skipping its script. Not unless you sit and listen to every call. And nobody does that.
+>
+> So things compound silently. The agent makes things up, the lead doesn't book, and you find out three weeks later when the client is upset.
+>
+> I built this to fix that. It watches every call, scores it against the agent's own goals, tells you exactly what's wrong, and — this is the part I'll spend most time on — when you apply a fix, it measures whether the fix actually worked. End to end, no manual listening."
 
-[Point at the structured "what the agent said / why flagged / why it matters / what to do" card]
-
-> "Each flagged moment explains itself in plain English — what the agent said, why we flagged it, why it matters for your business, and what to do. No AI jargon."
-
-#### 2:45 — V4 Apply: one click fixes the live agent (45s) — **the killer feature**
-[Back to /patterns, click `▶ Apply to FrontDoor AI` on a critical pattern]
-
-> "Now here's the part no observability tool I know does. Watch this."
-
-[Diff modal opens]
-
-> "Modal opens **focused on the one section being changed** — not the whole 5,000-character prompt. I see the original section on the left, the AI's modified version on the right with **the added text highlighted in green**. The product parsed this agent's prompt into **10 named sections** — Persona, Goals, Information Gathering, Script — and decided this fix belongs in **Information Gathering** with high confidence. If I disagree, the **'Place this fix in'** picker lets me re-target any section. Seven validators ran live: variables, length, brand voice, safety, call-length, plus V4.2's section-fit and context-consistency — all green."
-
-[Click `▶ Apply AI suggestion`]
-
-> "Two seconds. We **snapshotted the previous prompt**, **PATCHed the live HighLevel Voice AI agent**, **recorded a new prompt version**, and **linked the recommendation to that version**. That last step is what closes the measurement loop — the next call ingested under the new prompt automatically triggers `computePendingOutcomes`. Receipt shows every step with timestamps."
-
-[Point at the receipt timeline — note the `record_prompt_version` step · then close]
-
-> "If the next batch of calls regresses the score, I click Rollback — previous prompt restored in one second. **Detection → fix in production → automatic measurement → optional revert. End-to-end loop closed.**"
+*(Show the Overview page in the background — let the metrics breathe for a second.)*
 
 ---
 
-### ACT 4 · TRIAGE + VALIDATE (3:30 – 4:15)
+### 0:30 — What the dashboard answers in 10 seconds (1 minute)
 
-#### 3:30 — Action queue (covers FSB "Use Actions") (20s)
-[Click ⚠️ Actions]
+> "Top of the page. Six numbers. That's the agency-wide pulse: 14 calls last week, 21% conversion, 67% KPI pass rate, average score 71, four actions needing human follow-up, mood mostly neutral.
+>
+> The strip below isn't decoration — it tells me **why** each number moved. The product has a short, deterministic narrative for each step. So instead of staring at a chart and guessing, it just says, in English, 'Objection Handling fell the hardest this period — three calls in a row failed to ask about budget.' That's the dashboard pointing at the right rock before I even ask."
 
-> "Actions queue is the FSB-required **Use Actions** surface — moments the AI flagged for human follow-up. Pending tab, plus resolved / dismissed / escalated history. Each row links directly to the flagged turn in the transcript — one click and the call opens scrolled to that moment."
+*(Hover the WHY line on the Monitor strip so the tooltip pops.)*
 
-[Click one `call XXXXX ↗` link to demonstrate the turn-scroll]
+> "Below that, every agent in the sub-account, ranked by health. Red dot means an agent is dragging — that's where I'm clicking next."
 
-#### 3:50 — Credibility: same pipeline against real HighLevel data (25s)
-[Switch to a second terminal]
+*(Click into the worst-performing agent — for the test DB demo, that's Maya or Grace.)*
+
+---
+
+### 1:30 — Agent Detail: the new calls list + the unverified-claim story (1.5 minutes)
+
+This is the section that changed most recently, and it's the section the reviewer will spend the longest looking at. I narrate around it carefully.
+
+> "Agent page. Top, the health donut, four key stats — calls, conversion rate, KPI pass rate, average cycle time from issue detection to fix. The notable bit: this agent has 8 calls flagged with **unverified claims**. That's a red badge for a reason — it's the highest-stakes signal we surface."
+
+*(Scroll down to the calls list. The calls list is the V5.9 redesign, so this is where I show off the recent work.)*
+
+> "Here's the calls list. The reason I'm pointing at it: the original version of this list was a bug factory. It said 'Calls (47)' at the top but only showed 20. No load-more, no sort, no search. Every reviewer would notice. So I rewrote it.
+>
+> First — the count is now **truthful**. 'Showing 20 of 47, in the last 30 days'. Change the time window at the top — every count on this page moves together. One source of truth.
+>
+> Second — every row is two lines now. Status badge, score, caller phone, duration, time-ago on the first line. Top issue and use-action badge on the second. Day grouping headers: Today, Yesterday, Mon Jun 8. If I'm scanning for a Friday spike, I can see it.
+>
+> Third — sort, search, and filter chips at the top. I can sort by lowest score to see the worst calls first. I can filter to just the ones with unverified claims. I can search by caller number."
+
+*(Click the ⚠ Unverified filter chip. The calls with red banners stay; everything else disappears.)*
+
+> "And this is the part I'm proudest of from a design standpoint. The calls where the AI made up facts get visual treatment proportional to the risk — red border on the left, amber banner up top, plain-English label saying 'two unverified claims.' Hover the banner..."
+
+*(Hover one of the banner rows. Tooltip shows the actual claim text.)*
+
+> "...and you see the actual claim, verbatim. 'We're HIPAA-certified and SOC 2 audited.' That's not in this agent's script — the model made it up. I can triage 47 calls without opening any of them, because the highest-risk ones literally pop off the page."
+
+*(Click into one of the flagged calls to show the structured detail card — 'what the agent said / why we flagged it / why it matters / what to do.')*
+
+> "Inside the call, the structured card explains it in business terms. No AI jargon. 'Said we're HIPAA-certified — that's a regulated claim, not in script, brand and legal exposure. Add a guardrail in Information Gathering.' The product is doing the analysis the agency owner would do, if they had time."
+
+---
+
+### 3:00 — Recommendations + one-click apply (1 minute)
+
+*(Back to the agent page → scroll to AI Insights, or click the Recommendations tab.)*
+
+> "Cross-call patterns. The product clusters similar issues by failure mode. This card here says 'Skipped budget question' affects 17 of 48 calls — 35%. The recommended fix is a specific edit to the Information Gathering section of the prompt. I click Apply."
+
+*(Click Apply. The diff modal opens.)*
+
+> "This is the apply modal. It opens **focused on the one section being changed**, not the whole 5,000-character prompt. Old text on the left, new text on the right with the added words highlighted in green. The product parsed this agent's prompt into ten named sections automatically — Persona, Goals, Information Gathering, Script — and decided this fix belongs in Information Gathering. If I disagree, the 'Place this fix in' picker lets me re-target.
+>
+> Seven validators run live. Variables still resolve, length within tolerance, brand voice consistent, safety checks pass, section-fit and context-consistency green."
+
+*(Click Apply AI suggestion.)*
+
+> "Two seconds. The receipt shows every step. Snapshot the previous prompt — we keep it so rollback is a one-click revert. Patch the live HighLevel Voice AI agent over their API. Record a new prompt version with a SHA-256 hash. Link the recommendation to that version — that last step is what closes the measurement loop.
+>
+> Now if the next batch of calls regresses, I see it. If it improves, I see that too. Either way, I'm not guessing."
+
+---
+
+### 4:00 — The proof: Recently Applied (40 seconds)
+
+*(Scroll up on the agent page to "Recently Applied — measurement proof".)*
+
+> "Here's the part most observability tools don't do. When I apply a fix, the system watches the next set of calls under the new prompt version and **causally measures** whether the fix moved the score. Delta of at least two points, sample size of three or more — that's the bar for a 'significant improvement.'
+>
+> This row: 'Follow the Script Steps' — applied yesterday, four post-apply calls — **+20 points**. Significant green check. The fix actually worked.
+>
+> This row: 'Capture Caller Details' — applied earlier, one post-apply call so far — **−3 points**. Marked as regression. That's the system catching a mistake. I'd roll back that one.
+>
+> And these waiting rows — they're not stuck. They're literally waiting for new calls to land under the freshly-applied prompt. The system knows it's measuring rather than silently failing. As soon as a call comes in, it auto-triggers the comparison."
+
+---
+
+### 4:40 — Switch to live DB, brief close (20 seconds)
+
+*(Open a second terminal alongside the browser.)*
 
 ```bash
 bash .runtime/use-data.sh live
 ```
 
-[Refresh the dashboard browser tab]
+*(Refresh the dashboard tab — same URL, the tunnel doesn't change.)*
 
-> "Everything you just saw — including the **Apply flow with the section-focused editor** — already ran end-to-end against the test dataset. The test DB uses a `LocalAgentService` adapter that mirrors HighLevel's interface, so the full V4 chain (snapshot → patch → version recording → mark applied → audit → measure) works offline. Now switch to live mode. Same UI. **Now it's pulling 9 real Voice AI agents from my HighLevel sandbox via OAuth, with real call transcripts, real KPI scoring.** Same pipeline — only difference is the Apply button now PATCHes the real HL Voice AI agent."
+> "Same UI, but now this is connected to my real HighLevel sandbox. Nine real Voice AI agents, real call transcripts via OAuth, real KPI scoring. The Apply button on this page patches the live agent over HL's Voice AI API for real. The test DB and the live DB run through the same pipeline — the test DB just swaps in a local adapter so the apply flow works offline.
+>
+> Built solo. Node and Vue, SQLite for storage, OpenAI for analysis, embedded inside HighLevel as a Marketplace App custom page. The architecture doc, the data model, the API spec, and the implementation log are all in the repo. Thanks for watching."
 
----
-
-### ACT 5 · CLOSE (4:15 – 4:30)
-
-> "Built solo. Node + Vue, SQLite via the built-in `node:sqlite`, OpenAI structured output, embedded in HighLevel via Marketplace App OAuth — dashboard sits in the HL left nav as a Custom Menu Link. V4 one-click apply against the HL Voice AI API is live and battle-tested — **27/27 V4 regression assertions** and **14/14 V4.2 validator assertions** passing against the real sandbox. The V4.3 measurement chain was found broken by PM-style audit and fixed; verified end-to-end on live data. Architecture docs, V4 plan, full regression suite all in the GitHub README."
-
-[End on the dashboard with the Flywheel measure stage visible — closes with the "loop is closed" image]
+*(End on a frame with the Recently Applied section visible — that's the strongest closing image.)*
 
 ---
 
-## Why this script structure works for FSB scoring
+## Why this script lands
 
-| FSB rubric criterion | Where the script hits it |
+A few choices worth flagging — these are deliberate.
+
+| Choice | Reason |
 |---|---|
-| **Product Thinking + UI/UX** — customer-centric | ACT 1 opens with agency-owner pain in their language (no AI jargon for the first 30s) |
-| **Completeness** — closes the loop raw logs → actionable recommendations | ACT 2 + ACT 3 walk the loop end-to-end; ACT 3 climax shows the loop *physically closing* via V4 Apply |
-| **Technical Integrity** — observability arch + recommendations logic | ACT 2 names the architecture concepts (Monitor / Analyze / Validation Flywheel — FSB's own terms); ACT 4 cites scope (Voice AI API), tests (27/27), and infra (OAuth) |
-| **Manual Code Review** — non-slop signal | ACT 5 cites the architecture docs + regression suite — invites the reviewer in |
-| **Required deliverables** — workflow, dashboard, insight | ACT 2 covers all three: ingestion (the WHY line implies it), unified dashboard (Overview + Flywheel), insight per agent (Patterns + Apply receipt) |
-| **Demo length 2-5 min** | Target 4:00 — within range, with 30s headroom for narration pacing |
+| Cold open is the pain, not the product | Agency owners care about the pain in the first 15 seconds. UI tours bore reviewers. |
+| The unverified-claim treatment gets ~45 seconds of airtime | It's the highest-stakes signal we surface and it's a strong visual moment. Reviewers remember the red banner with the actual claim quoted. |
+| The Apply flow is the climax, not the opener | Demo arcs need a peak. Apply is the moment "observability tool" turns into "improvement tool" — that's the differentiation. |
+| Measurement proof is shown last, not first | Without the loop closing, all the prior work is just a pretty dashboard. Saving it for the end makes it the takeaway. |
+| Honest about the "waiting" state | The live DB has 4 waiting + 1 measured. Pretending otherwise breaks trust. Naming it out loud — "the system knows it's measuring rather than silently failing" — actually strengthens the narrative. |
+| Live-DB switch happens at the end, not the start | Test DB has the cleanest measurement story; live DB proves the pipeline. Going test→live lets the reviewer build trust then verify it. |
 
 ---
 
-## Toggle commands referenced in the script
+## Timing reference
+
+| Section | Length | Cumulative |
+|---|---|---|
+| Cold open | 0:30 | 0:30 |
+| Dashboard pulse | 1:00 | 1:30 |
+| Agent Detail + calls list + unverified claims | 1:30 | 3:00 |
+| Recommendations + Apply | 1:00 | 4:00 |
+| Recently Applied measurement proof | 0:40 | 4:40 |
+| Live-DB switch + close | 0:20 | 5:00 |
+
+Target 5:00 with ±30s headroom for natural pacing. Don't sprint — let the visuals settle.
+
+---
+
+## Mid-recording rescue commands
+
+If something looks off mid-take, these are the only commands I run without stopping:
 
 ```bash
-# Start fresh on a specific DB — skips the interactive prompt
-bash .runtime/run-persistent.sh restart --db=test    # demo prep
-bash .runtime/run-persistent.sh restart --db=live    # live HL demo
-
-# Or start with an interactive prompt (shows row counts for each DB)
-bash .runtime/run-persistent.sh
-
-# Mid-session — switch without restarting the tunnel (URL stays the same)
-bash .runtime/use-data.sh status
+# Switch DB without restarting the tunnel (URL stays the same)
 bash .runtime/use-data.sh test
 bash .runtime/use-data.sh live
 
-# Re-seed the test DB from scratch (costs ~$0.10 OpenAI)
-bash .runtime/use-data.sh seed-test
+# If the page caches stale data, restart the server in place
+bash .runtime/run-persistent.sh restart --db=test
 ```
 
-> The mid-session toggle (`use-data.sh`) is the one the demo uses at ~3:50 — it keeps the tunnel URL stable so the dashboard reloads in place without a new URL flashing up.
+If anything more invasive is needed (re-seed, OpenAI re-run, prompt-version backfill), I stop the recording and reset. Don't try to fix it on camera.
 
 ---
 
-## Optional 90-second cut (if you want a shorter Loom)
+## Recording polish
 
-If you want a tighter "trailer" version under 2 minutes, drop ACT 2's Patterns walk and ACT 4's Actions queue. Keep:
+A few things that quietly raise the production value:
 
-- 0:00–0:30 — Problem (cold open)
-- 0:30–1:00 — Overview + Flywheel (Monitor + framing)
-- 1:00–2:00 — V4 Apply (the climax)
-- 2:00–2:15 — Close
-
-That's 2:15 total. Loses depth but hits the FSB rubric items.
-
----
-
-## Filming notes — visual polish
-
-| Detail | Why it matters |
-|---|---|
-| Show the cursor moving deliberately (no jitter) | Reviewer follows your attention |
-| Pause 0.5s after each click so the UI fully settles before narration continues | Looks confident, not rushed |
-| When the Apply receipt panel renders, let the timeline animate fully before talking over it | Receipt is the wow — let it land |
-| Keep tabs/extensions/notifications hidden | Distractions cost credibility |
-| Mouse over the WHY line at 0:30 so the reviewer sees the AI explanation appear | Demonstrates the "deterministic narrative" feature without naming it |
+- **Cursor moves deliberately.** No jitter. Pause half a second after each click so the UI fully settles before I speak again.
+- **Receipt timeline gets silence.** When the apply receipt renders, let the steps animate. Don't talk over the visual climax.
+- **No dev tools, no extensions visible.** Reviewers notice.
+- **The tooltip on the unverified-claim banner needs to be readable on Loom playback.** Test it once at recording resolution before going live — Loom compresses small text.
+- **No background noise**, no breath sounds. Normalize the audio after.
+- **The first 15 seconds must hook on the pain, not the UI.** If I open with "let me show you the dashboard" the reviewer tunes out.
 
 ---
 
-## Final pass before publishing
+## Closing checklist before publishing
 
-- [ ] Watch full recording — cut any silences > 1.5s
-- [ ] First 15 seconds must hook the viewer with the customer pain — not the UI tour
-- [ ] V4 Apply receipt panel is the visual climax — make sure it renders cleanly and you don't talk over the timeline animation
-- [ ] Audio normalised, no background noise, no breath sounds
-- [ ] Length 2:00–5:00 (target 4:00). Trim if over 4:45.
-- [ ] No personal info, OpenAI key, HL PAT, or company name visible in URL bar or DevTools
-- [ ] End on the LIVE-data refresh + a stable Flywheel-measure image — that's the "this is real and works" moment
+- [ ] Length between 4:00 and 5:30. Trim if over.
+- [ ] No PAT, no API key, no personal phone number visible anywhere in the recording.
+- [ ] Audio normalized.
+- [ ] First-frame is the Overview page already loaded, not a blank tab.
+- [ ] Last-frame is Recently Applied — the loop visible closing.
+- [ ] Loom URL added to the README and the submission form.
+- [ ] Cloudflared tunnel URL tested in an incognito window 5 minutes before sending.
+- [ ] Brief note in the submission body: "Demo opens on test DB for the cleanest measurement story; live HL toggle at ~4:40 proves the same pipeline against real OAuth-pulled call data."
 
-## Submission checklist
-
-- [ ] Loom URL added to README + submission form
-- [ ] GitHub repo URL: https://github.com/UdayAppam/voice-agent-flywheel
-- [ ] Cloudflared tunnel URL (or stable demo URL) tested 5 min before sending — verify a fresh browser can load `/dashboard/`
-- [ ] Brief reviewer note in submission body: "Demo on test data; live HL data toggle shown at ~3:50"
+That's the demo. Honest, paced, and showing the actual product.
