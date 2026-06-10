@@ -227,11 +227,7 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
-## Demo
 
-2-5 min Loom recording walkthrough script: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
-
----
 
 ## Status
 
