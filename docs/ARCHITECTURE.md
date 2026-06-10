@@ -10,7 +10,7 @@ Reflects the system as shipped at `v4.8`. Last updated 2026-06-09.
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                          HighLevel Sub-Account                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │  HL left nav → "AI Copilot" Custom Menu Link                          │ │
+│  │  HL left nav → "AI Copilot" Custom Page (auto-provisioned)            │ │
 │  │  └── full-width iframe → <BACKEND_URL>/dashboard/?locationId=…        │ │
 │  │  Marketplace App OAuth populated oauth_installations on install,      │ │
 │  │  giving us per-location access_token + refresh_token for HL writes.   │ │

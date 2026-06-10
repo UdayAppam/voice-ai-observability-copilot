@@ -2,9 +2,11 @@
 
 End-to-end setup for installing the copilot into a HighLevel sub-account.
 
-The integration path is **Marketplace App with OAuth**. The dashboard is added to HL's left nav as a Custom Menu Link (full-width iframe) — production-shape, multi-tenant ready, no Custom JS injection required.
+The integration path is **Marketplace App with OAuth + Custom Pages**. HL auto-provisions a full-page `AI Copilot` tab in every sub-account that installs the app. The dashboard renders inside HL's managed iframe at full width with the location context passed via URL query params.
 
-> The Custom JS widget shipped in earlier iterations was removed — the 440px slide-in sidebar was too narrow for the multi-column dashboard. The OAuth + Custom Menu Link approach embeds the dashboard at full width inside HL's native chrome.
+A per-sub-account **Custom Menu Link** alternative is documented as Option B in Step 7 — useful for developer testing where you want a manual URL override.
+
+> The Custom JS widget shipped in earlier iterations was removed — the 440px slide-in sidebar was too narrow for the multi-column dashboard. Custom Pages embed at full width inside HL's native chrome and are the recommended path for Marketplace App distribution.
 
 ---
 
@@ -125,16 +127,104 @@ curl -s -H 'X-API-Key: <your API_KEY>' <your-tunnel>/api/oauth/installations
 
 ---
 
-## Step 7 — Add the dashboard as a Custom Menu Link in HL
+## Step 7 — Surface the dashboard inside HL
+
+There are two production-shape ways to embed the dashboard inside a sub-account. Custom Pages is the recommended path for Marketplace App distribution; Custom Menu Links is a per-sub-account alternative if you want manual control.
+
+### Option A (recommended) — Custom Pages (Marketplace App)
+
+Custom Pages let a Marketplace App declare a full-page tab that HL auto-provisions inside every sub-account that installs the app. The location admin sees a dedicated `AI Copilot` page in the left nav the moment they install — no manual URL configuration per location.
+
+**How it works at a high level**:
+
+```
+1. Marketplace App listing declares a Custom Page URL.
+2. Location admin installs the app  →  HL exchanges OAuth code  →  /api/oauth/callback
+3. HL automatically provisions a "Custom Page" entry in that sub-account's nav.
+4. Admin clicks the tab  →  HL renders an iframe of:
+   <your-app>/dashboard/?locationId=<sub_acct>&userId=<u>&companyId=<c>&...
+5. Backend reads ?locationId from the URL, looks up the persisted OAuth tokens
+   for that location, and serves the SPA. SPA reads ?locationId from
+   window.location and uses it as the implicit auth context.
+```
+
+**Configure the Custom Page in the Marketplace listing**
+
+1. Go to https://marketplace.gohighlevel.com → your app → **App Settings → Custom Pages**
+2. Click **Add Custom Page** and fill in:
+
+   | Field | Value | Notes |
+   |---|---|---|
+   | **Display name** | `AI Copilot` | What the sub-account user sees in their nav |
+   | **Icon** | choose any | Optional |
+   | **Custom URL** | `<your-tunnel>/dashboard/` | HL appends `?locationId=…&userId=…&companyId=…` automatically |
+   | **Distribution scope** | `Sub-Account` | Must match the OAuth distribution type set in Step 4 |
+   | **Sidebar position** | top, middle, or bottom | Visual preference |
+
+3. Save the listing changes.
+4. Re-install the app in your sandbox (or wait for HL to rebuild the cache — typically <1 min) so the new Custom Page provisions.
+5. Reload your sandbox sub-account → `AI Copilot` appears in the left nav as a top-level tab.
+
+**Why this works without code changes**
+
+The backend already handles the iframe contract that Custom Pages requires:
+
+| Custom Pages requirement | Where it's handled |
+|---|---|
+| Iframe-friendly CSP (no `X-Frame-Options: DENY`) | `backend/src/app.js:17-21` removes the header and sets `Content-Security-Policy: frame-ancestors *` |
+| Accept `?locationId=…` query param | `routes/oauth.js` callback redirects to `/dashboard/?locationId=…`; the SPA pulls `locationId` from `window.location.search` |
+| OAuth-installed tokens looked up per location | `HLAuthService.getInstallation(locationId)` resolves the persisted `access_token` / `refresh_token` from `oauth_installations` keyed on `locationId` |
+| 401 auto-refresh on stale tokens | `HLVoiceAgentService._request` catches 401, calls `HLAuthService.refreshToken(locationId)`, retries once |
+| Same-origin SPA serving (no CORS) | Backend serves the Vue build from `/dashboard` so all `/api/*` calls share origin |
+
+**Verify the Custom Page is live**
+
+```bash
+# 1. Confirm an installation exists for the sub-account
+curl -s -H "X-API-Key: $API_KEY" "$BACKEND_URL/api/oauth/installations" | jq
+# → { "count": 1, "installations": [{ "locationId": "...", "scope": "voice-ai-... ..." }] }
+
+# 2. Hit the dashboard with the location context HL would pass
+curl -sI "$BACKEND_URL/dashboard/?locationId=<sub_acct>" | head -5
+# Headers should include:
+#   content-security-policy: frame-ancestors *
+#   (no X-Frame-Options)
+
+# 3. Inside HL, open the AI Copilot tab — the dashboard renders inside the iframe
+```
+
+**Tightening security before launch**
+
+The `frame-ancestors *` directive is permissive (suitable for development + this assignment scope). Before public launch, narrow it to HL's domains in `backend/src/app.js`:
+
+```js
+res.setHeader('Content-Security-Policy',
+  "frame-ancestors https://*.gohighlevel.com https://*.leadconnectorhq.com")
+```
+
+This locks the app to only render inside HL's chrome — third-party sites can no longer embed it.
+
+### Option B — Custom Menu Link (manual, per sub-account)
+
+If you don't want to publish the Marketplace App listing change yet — or you need a per-sub-account URL override (different OAuth installation, different tunnel) — Custom Menu Links are the manual alternative.
 
 1. Sandbox sub-account → Settings → **Custom Menu Links → Add Custom Menu Link**
 2. **Name**: `AI Copilot`
 3. **URL**: `<your-tunnel>/dashboard/?locationId=<this-sub-account-id>`
 4. **Open in**: Iframe (keeps it inside HL's chrome)
 5. **Icon**: pick anything (📊 works)
-6. Save → reload HL → "AI Copilot" appears in the left nav
+6. Save → reload HL → `AI Copilot` appears in the left nav
 
-The dashboard now lives natively inside HL at full width. Our iframe-friendly CSP headers (`app.js:17-21`) already allow embedding inside HL.
+This is functionally identical from the user's perspective. The only differences are:
+
+| | Custom Pages | Custom Menu Links |
+|---|---|---|
+| Setup | Configured once in Marketplace listing | Configured per sub-account by the location admin |
+| Auto-provisioned on install | ✅ | ❌ (manual step per sub-account) |
+| Editable URL per location | ❌ (single URL in listing) | ✅ |
+| Best for | Multi-tenant Marketplace App distribution | Single-tenant developer testing, ad-hoc embeds |
+
+For this project's distribution path (Marketplace App), **Custom Pages is recommended**. Custom Menu Links remain useful for local development and the iframe rendering is identical, so a sandbox configured with a Custom Menu Link can be promoted to a Custom Page later without code changes.
 
 ---
 

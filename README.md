@@ -7,7 +7,7 @@ An observability + improvement copilot for HighLevel Voice AI agents. Built for 
 
 Pulls call transcripts from a HighLevel sub-account (or realistic mock data), scores each call against agent-specific KPIs with OpenAI, surfaces deviations / missed opportunities / hallucinations / required human follow-up, then closes the loop by **causally measuring** whether applied recommendations actually moved the score.
 
-The product embeds inside HighLevel via Marketplace App OAuth (Custom Menu Link in the HL nav).
+The product embeds inside HighLevel as a Marketplace App **Custom Page** — HL auto-provisions a full-page `AI Copilot` tab in every sub-account that installs the app, rendered inside HL's managed iframe with the location context passed via URL.
 
 ---
 
@@ -48,7 +48,7 @@ Monitor + Analyze are the FSB Core Functionality. The Validation Flywheel is the
 | Database | SQLite via Node's built-in `node:sqlite` (WAL mode) | Zero native deps; ships with Node 22.5+ |
 | AI | OpenAI `gpt-4o-mini` with `response_format: json_schema` + `strict: true` | Structured output, no parsing fragility, cheap |
 | Logging | pino (structured JSON) | Production-grade |
-| HL integration | Marketplace App OAuth — dashboard embeds as Custom Menu Link in HL nav | Production-shape integration, full-width iframe |
+| HL integration | Marketplace App OAuth + **Custom Pages** — HL auto-provisions a full-page tab in every installed sub-account | Production-shape integration, full-width iframe with location context |
 | Deploy | Local Node + cloudflared tunnel for HL-facing HTTPS; any Node host works | No cloud lock-in; persistent disk required for SQLite |
 
 ---
@@ -124,7 +124,7 @@ The first start auto-seeds 4 mock Voice AI agents with realistic transcripts. Cl
 
 ### Option B — Live HighLevel sub-account
 
-See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full walkthrough (sandbox creation, PIT scopes, OAuth Marketplace App install, cloudflared exposure, dashboard as Custom Menu Link).
+See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full walkthrough — sandbox creation, PIT scopes, OAuth Marketplace App install, cloudflared exposure, Custom Pages configuration (recommended) or Custom Menu Link fallback.
 
 ### One-command persistent server (backend + tunnel)
 
@@ -148,7 +148,7 @@ bash .runtime/use-data.sh test|live              # toggle DB without restart
 │   ├── IMPLEMENTATION_PLAN.md      ← what shipped + future roadmap
 │   ├── DATA_MODEL.md               ← SQLite schema + lifecycle states
 │   ├── API_SPEC.md                 ← every REST endpoint + payloads
-│   ├── INTEGRATION.md              ← HL sandbox + cloudflared + Marketplace App install
+│   ├── INTEGRATION.md              ← HL sandbox + cloudflared + Marketplace App + Custom Pages setup
 │   ├── DEMO_SCRIPT.md              ← Loom recording walkthrough
 │   ├── V4_PLAN.md                  ← V4 design — one-click apply (shipped)
 │   └── V4_API_DISCOVERY.md         ← HL API findings that grounded V4
@@ -200,7 +200,7 @@ Built solo across all four FSB roles. Decisions made:
 
 ```
 HighLevel Sub-Account
-  └── "AI Copilot" Custom Menu Link (full-width iframe)
+  └── "AI Copilot" Custom Page (full-width iframe, auto-provisioned via Marketplace install)
         └── Vue.js SPA → axios → Express API (same origin)
                                           │
               ┌───────────────────────────┼───────────────────────────┐
