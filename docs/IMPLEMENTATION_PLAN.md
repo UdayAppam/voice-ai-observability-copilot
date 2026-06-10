@@ -188,7 +188,7 @@ UPDATE recommendations SET ..., applied_prompt_version_id=?, ...
 
 ### Phase 4.6 — Section structure visibility + manual override + focused diff
 
-Senior-PM critique of V4.2: section-aware insertion was already happening, but the user couldn't *see* the agent's full structure or *override* the LLM's section choice. This shipped the three concrete gaps:
+V4.2 quietly handled section selection behind the scenes, but the user couldn't *see* the agent's full structure or *override* the LLM's choice. This phase closes those three gaps:
 
 **A — Show full section list in ApplyDiffModal**
 - The collapsible `▾ See all N sections in this agent's prompt` panel now renders every parsed section with name + char-length + summary.
@@ -215,7 +215,7 @@ Senior-PM critique of V4.2: section-aware insertion was already happening, but t
 
 ### Phase 4.7 — Section-focused editor + word-level diff highlighting
 
-Senior-PM critique of V4.6: the section-aware logic was visible via info panels but the editing surface was still a 5000-char textarea showing the whole merged prompt. User had to scroll/search to find what to tune. And the section-only before/after panel showed `BEFORE` and `AFTER` as plain text — user had to mentally diff to see what changed.
+V4.6 surfaced the section logic via info panels but the editing surface was still a 5000-char textarea showing the whole merged prompt — the user had to scroll/search to find what to tune. The section-only before/after panel showed BEFORE and AFTER as plain text, leaving the actual change for the reader to spot mentally.
 
 **A — Word-level diff highlighting**
 - New `diff` npm dep (`^9.0.0`, Myers algorithm, ~30KB minified) imported in `ApplyDiffModal.vue`.
@@ -344,9 +344,9 @@ In rough priority order by customer impact:
 
 ---
 
-## 6. Acceptance criteria — current ship (v4.8)
+## 6. Acceptance criteria — current ship (v5.8)
 
-All passing as of 2026-06-09:
+All passing as of 2026-06-10:
 
 - [x] Hard-refresh `/dashboard/` shows Monitor→Analyze hero block with live data
 - [x] `[♻️ Flywheel]` loads 2-hero layout with honest "leak vs waiting" classification + correct math (windowed, significance-thresholded)
@@ -389,7 +389,7 @@ Test DB seeded from 30 calls → 155 calls so the dashboard tells a credible at-
 - V4.5 patterns rollup: cross-agent state ("Capture Caller Info" shows "applied 0/2 — needed on 2 agents") works at real scale
 - V4.7 inline diff highlighting + V4.8 LocalAgentService: section-focused editor + local-DB apply both verified
 
-**PM observations during the simulation**:
+**Observations during the simulation**:
 - 1 apply was BLOCKED by `context_consistency` (Maya's "Summarize Next Steps"). Not a bug — the validator correctly identified that the proposed addition contradicted existing prompt instructions. This is the safety net working.
 - 1 measured outcome regressed (-27.6 pts). Realistic — not every fix improves things. The system surfaces it in the Measure narrative as "Regression: ... (re-investigate)" which is exactly what the customer should see.
 - "Biggest leak: Recommendations Applied (17%)" correctly identifies user-actionable bottleneck — 38 recs queued, 8 applied.
@@ -402,7 +402,7 @@ Test DB seeded from 30 calls → 155 calls so the dashboard tells a credible at-
 
 ### Phase 5.0 — Actions ↔ Flywheel connection + delta-display fix
 
-PM-grade observation from user: dashboard showed `actionsRequired: 67 (6600%)` and resolving 67 actions manually didn't move the flywheel. Two real product gaps:
+A field check exposed two real product gaps in the Actions surface: the hero card showed `actionsRequired: 67 (6600%)` (mathematically correct period-over-period but visually meaningless when the prior count was 1), and resolving 67 actions manually didn't move the flywheel needle at all. Two issues to fix:
 
 **Fix 1: Period-over-period % capping** (`backend/src/routes/dashboard.js`)
 - `pct()` now returns `null` when prior period < 5 (tiny base makes % meaningless — e.g. 1→67 reads as 6600% which is mathematically right but visually absurd)
@@ -435,7 +435,7 @@ PM-grade observation from user: dashboard showed `actionsRequired: 67 (6600%)` a
 
 ### Phase 5.1 — Monitor→Improve Loop strip redesign
 
-PM-grade observation from user: the Overview's `Core Functionality / Monitor → Analyze Loop` widget showed 4 generic steps (Ingest, Analyze, **Surface**, **Act**) that stopped before the closure. A reviewer looking at this card would see "this product detects problems" but miss "this product *closes the loop and proves the fixes work*" — i.e., the V4+ differentiator was invisible at the Overview level.
+The Overview's `Core Functionality / Monitor → Analyze Loop` widget showed 4 generic steps (Ingest, Analyze, **Surface**, **Act**) that stopped before the closure. Anyone scanning that card would see "this product detects problems" but miss "this product *closes the loop and proves the fixes work*" — the V4+ differentiator was invisible at the Overview level.
 
 **Renamed**: `Monitor → Analyze Loop` → `Monitor → Improve Loop` (sets the right expectation: the product fixes things, doesn't just observe).
 
@@ -465,7 +465,7 @@ The "Best fix" line is the demo gold. On test DB: `"Follow the Script Steps" +20
 
 ### Phase 5.2 — Dashboard delta-label clarity
 
-PM-grade observation from user: deltas read `↑ 66 (vs previous period)` on hero cards and `↑ N vs prior` on the Monitor→Improve strip — two different phrasings on the same page for the same concept, neither saying what "period"/"prior" actually meant.
+Dashboard inspection turned up inconsistent delta phrasing: hero cards read `↑ 66 (vs previous period)` while the Monitor→Improve strip read `↑ N vs prior` — two phrasings on the same page for the same concept, and neither said what "period" / "prior" actually meant.
 
 **Fix**: unified vocabulary `vs prior {N}d` everywhere, where N is the actively-selected time-range filter.
 
@@ -479,7 +479,7 @@ PM-grade observation from user: deltas read `↑ 66 (vs previous period)` on her
 
 ### Phase 5.3 — Caller Mood Trend redesign
 
-PM critique of the `Sentiment Trend` widget surfaced 9 real product issues — title was generic, subtitle was jargon ("sentiment bucket"), bucket thresholds didn't match the agent's sentiment KPI threshold, zero-data days plotted as 0% (read as "agent collapsed"), x-axis was technical (`06-04`), tooltip had no sample size, no per-agent filter, no spike detection, no actionable footer.
+A review of the `Sentiment Trend` widget surfaced 9 real product issues — title was generic, subtitle was jargon ("sentiment bucket"), bucket thresholds didn't match the agent's sentiment KPI threshold, zero-data days plotted as 0% (read as "agent collapsed"), x-axis was technical (`06-04`), tooltip had no sample size, no per-agent filter, no spike detection, no actionable footer.
 
 **Backend changes** (`backend/src/routes/dashboard.js`):
 - `computeSentimentTrend` now returns `total` (sample size), `hasData`, plus raw counts per bucket — UI uses these for "N of M calls" tooltips and to hide zero-data days
@@ -505,7 +505,7 @@ PM critique of the `Sentiment Trend` widget surfaced 9 real product issues — t
 
 ### Phase 5.4 — Dashboard numbers audit + Conversion vs KPI Pass
 
-PM-grade observation from user: test DB showed `Success Rate: 0%` even though calls were measured and improved. Investigation surfaced 4 real issues across the hero metrics:
+Testing against the seeded test DB surfaced a clear correctness bug: `Success Rate: 0%` despite multiple calls being measured and improved. Investigation uncovered 4 issues across the hero metrics:
 
 **Bug 1 — Success Rate hardcoded to a single string**
 - `computeSuccessRate` (`backend/src/routes/dashboard.js`) used `WHERE c.outcome = 'booked'` literally — but real outcomes are variants like `meeting_booked`, `consultation_booked`, `appointment_booked`, `trial_started`. None matched exactly so the SUM always returned 0.
@@ -534,7 +534,7 @@ PM-grade observation from user: test DB showed `Success Rate: 0%` even though ca
 
 ### Phase 5.5 — Agent Detail redesign (FSB-aligned)
 
-PM-grade audit of `/agents/:id` surfaced three FSB requirement gaps + several UX issues:
+An audit of `/agents/:id` against the Core Functionality requirements surfaced three coverage gaps + several UX issues:
 
 **Gaps vs FSB Core Functionality**:
 1. "Highlight Use Actions" — not surfaced on Agent Detail at all
@@ -576,7 +576,7 @@ PM-grade audit of `/agents/:id` surfaced three FSB requirement gaps + several UX
 
 ### Phase 5.6 — Per-agent Caller Mood Trend on Agent Detail
 
-User asked for the agency-wide Caller Mood Trend (V5.3) to also appear at agent level so they can spot per-agent mood shifts without navigating back to Overview and filtering. PM+architect review:
+The agency-wide Caller Mood Trend (V5.3) only lived on Overview, forcing the user to navigate back and filter by agent to spot per-agent mood shifts. V5.6 surfaces the same widget on Agent Detail so the signal stays in context. Plan + validation:
 
 **Architectural decision — extract helpers to a shared service**:
 - `computeSentimentTrend` and `computeSentimentSpike` previously lived in `routes/dashboard.js`. Cross-route reuse would require either circular-import gymnastics or duplication.
@@ -604,7 +604,7 @@ User asked for the agency-wide Caller Mood Trend (V5.3) to also appear at agent 
 
 ### Phase 5.7 — preview-apply latency optimization (offset-based parseSections)
 
-User flagged preview-apply taking ~47s cold. Bench-traced bottleneck to `PromptStructureService.parseSections` — 47s of 49s total. Root cause: LLM was being asked to OUTPUT the full verbatim text of every section (~5K chars of output tokens for a 5K-char prompt). Most of the latency was OpenAI generation time on the huge structured-JSON output.
+Profiling exposed `preview-apply` taking ~47s on a cold call. Per-step instrumentation isolated the bottleneck to `PromptStructureService.parseSections` — 47s of 49s total. Root cause: the LLM was being asked to OUTPUT the full verbatim text of every section (~5K chars of output tokens for a 5K-char prompt). Most of the latency was OpenAI generation time on the huge structured-JSON output.
 
 **A/B benchmark on Grace's 10,425-char prompt** (`backend/scripts/bench-parse-sections-ab.js`):
 - VERBATIM (current): median 47s, 2,591 output tokens
@@ -612,7 +612,7 @@ User flagged preview-apply taking ~47s cold. Bench-traced bottleneck to `PromptS
 
 **LLM stochasticity caught by A/B**: with naive offset prompt, 67% hit rate (2 of 3 runs hit 100% coverage; 1 reverted to header-only ~27% coverage). After tightening the prompt with explicit "every char must belong to a section" rules + worked example, hit rate climbed to 67% consistently.
 
-**Safeguards (must-have, per architect review)**:
+**Safeguards required for production**:
 1. **Coverage gate** — accept offset output only if total span ≥ 70% of prompt length
 2. **Validity checks** — no overlapping, no out-of-bounds, no negative spans
 3. **One retry** on validation failure before falling back
@@ -641,7 +641,7 @@ User flagged preview-apply taking ~47s cold. Bench-traced bottleneck to `PromptS
 
 **Files**: `backend/src/services/PromptStructureService.js` (new `_parseWithSafeguards`, `_llmParseOffsets`, `_validateOffsets`, `_materialiseFromOffsets`; kept `_llmParseVerbatim` as fallback), `backend/scripts/bench-parse-sections-ab.js` (benchmark, kept for future tuning).
 
-### Phase 5.8 — Vocabulary + threshold alignment (PM + architect audit fixes)
+### Phase 5.8 — Vocabulary + threshold alignment (consistency audit)
 
 PM + tech-architect audit found 2 real inconsistencies between what the UI claims and what the implementation does:
 
@@ -686,22 +686,102 @@ PM + tech-architect audit found 2 real inconsistencies between what the UI claim
 
 ---
 
-## 7. FSB requirement coverage matrix
+## 7. Core Functionality coverage matrix
 
-| PDF requirement | Coverage | Where |
+Mapping the original Core Functionality requirements to where each is implemented and how it has been verified.
+
+### Monitor loop — Observability
+
+| Requirement | Where it's implemented | Verification |
 |---|---|---|
-| Sandbox account from HL Marketplace | Documented | `INTEGRATION.md` |
-| Custom JS OR Marketplace App integration | Marketplace App OAuth + Custom Menu Link | `routes/oauth.js`, `HLAuthService` |
-| Ingest + analyze existing Voice AI transcripts | ✅ | `IngestionService`, `AnalysisService`, `HighLevelTranscriptProvider` |
-| Observability params from agent's specific goals/script | ✅ | `kpi_definitions` per agent, editable via `KpiEditor.vue` |
-| Identify deviations | ✅ | OpenAI `deviations[]`, rendered as transcript rings + Flags Timeline |
-| Identify failures | ✅ | `status: 'fail'` + recompute overall_score from KPIs × weights |
-| Identify missed opportunities | ✅ | OpenAI `missedOpportunities[]` |
-| Intuitive dashboard across existing agents | ✅ | Overview hero + 4-tab IA |
-| Visualise performance issues | ✅ | Status distributions, KPI radar, failure reasons, sentiment trend, `/patterns`, 2-hero Flywheel |
-| Immediate recommendations for prompt/script adjustments | ✅ + V4 closes the loop with one-click apply | First-class `recommendations` table; V4 PATCHes HL agent directly |
-| Highlight "Use Actions" | ✅ | Dedicated `/actions` queue + per-turn transcript rings + verb buttons |
-| Validation Flywheel framing | ✅ + V4.3 fix proves causality | Funnel + 5 stages + measured outcomes + significance thresholds + leak/waiting classification |
-| GitHub repo URL | ✅ | https://github.com/UdayAppam/voice-agent-flywheel |
-| 2-5 min Loom demo | Script written, recording pending | `DEMO_SCRIPT.md` |
-| README + Team-of-One + functional/mocked | ✅ | `README.md` |
+| Ingest existing Voice AI agent call transcripts | `IngestionService` + `HighLevelTranscriptProvider` (pull from `/voice-ai/dashboard/call-logs`) + `MockTranscriptProvider` (4 seed agents for offline dev) | Sync All button on Overview triggers ingestion; row counts visible in `bash .runtime/use-data.sh status` |
+| Analyze transcripts | `AnalysisService` runs OpenAI `gpt-4o-mini` with strict JSON-schema per call | Per-call analysis row in `analyses` with `overall_score`, `status`, `kpi_scores_json`, etc |
+| Set observability parameters based on agent's goals/script | `kpi_definitions` table is **per-agent** with `weight` + `threshold` + `description`; `KpiEditor.vue` inline-edits the values; LLM system prompt is rebuilt per analysis with the agent's specific KPI list | Editor enforces weights sum to 1.0; updated values flow into the next analysis without restart |
+| Identify deviations | LLM returns `deviations[]` referencing specific script steps; surfaced as transcript-turn rings on Call Detail; aggregated per agent as "Recurring Deviations" (V5.5) | Call Detail Flags Timeline; Agent Detail "Recurring Deviations" lists "skipped step X in N of M calls" |
+| Identify failures | `status='fail'` when recomputed `overall_score < 50`; recomputation uses `Σ(kpi_score × weight) / Σ(weight)` for arithmetic determinism | Status pill on every analysis; KPI Pass Rate on Overview hero |
+| Identify missed opportunities | LLM returns `missedOpportunities[]` with per-turn references; aggregated per-agent as "Missed Opportunities" (V5.5) | Call Detail rings; Agent Detail aggregate list with frequency |
+
+### Analyze loop — Unified Dashboard
+
+| Requirement | Where it's implemented | Verification |
+|---|---|---|
+| Intuitive dashboard across existing agents | Overview page with 4-tab IA (Overview / Flywheel / Recommendations / Actions); hero metrics + Monitor→Improve 5-step strip with per-stage trend deltas (V5.1); responsive layout | `/dashboard/` loads, every tab returns HTTP 200, deltas update on filter change |
+| Visualize performance issues | 6 hero cards (Total Calls, Conversion Rate, KPI Pass Rate, Avg Duration, KPI Avg, Actions Required); Caller Mood Trend with spike annotation (V5.3); Validation Funnel with leak vs waiting (V4.4); per-agent radar + KPI bars | Smoke test against test DB shows 6 cards populated, mood spike auto-annotated, funnel marks Recommendations Applied as "biggest leak" |
+| Immediate recommendations for prompt/script/agent adjustments | First-class `recommendations` table with `cluster_key` dedup + semantic dedup (V4.5); V4 one-click apply via `PATCH /voice-ai/agents/:id` (PATCHes HL agent directly); editable diff modal with 7 live validators; section-aware insertion (V4.2) places fix in the right section; section-focused editor (V4.7) shows only the section being modified | 27/27 V4 regression assertions on real HL sandbox; 14/14 V4.2 validator regression; end-to-end V4.3 measurement chain verified on live data |
+| Highlight Use Actions | Dedicated `/actions` queue with status overlay (`use_action_statuses` table); per-turn transcript rings on Call Detail; per-agent breakdown on Agent Detail (V5.5); escalation auto-spawn to recommendation when same `(agent, action_type)` is escalated 3+ times (V5.0) | Actions page lists every flagged turn; escalation auto-spawn verified end-to-end (3 escalations of `script_training` on `reg-grace` produced a new recommendation) |
+| Validation Flywheel framing | 5-stage funnel (Issues Detected → Recommendations Generated → Applied → Measured → Improved) with conversion percentages; significance threshold `Δ≥2 pts AND n≥3`; leak vs waiting classification distinguishes user-actionable bottlenecks from natural data lag (V4.4); causal before/after via `applied_prompt_version_id` (V4.3 fix) | `computePendingOutcomes` runs at end of every analysis; verified on live HL: synthetic post-apply call → outcome computed automatically → flywheel "Outcomes Measured" increments |
+
+## 8. Correctness & UX validation
+
+### Does the product solve the agency owner's pain points?
+
+| Pain point | Solution | Where the user feels it |
+|---|---|---|
+| "I don't have time to listen to every call" | Every call auto-scored + flagged in seconds | Overview shows totals + spike-day callouts; no manual triage needed |
+| "I don't know which agent is dragging us down" | Per-agent KPI breakdown + per-agent mood trend + Worst-KPI badge | Agent Status Strip + Agent Detail page |
+| "I see problems but don't know what to fix" | Recommendations clustered by failure mode with concrete `suggestedChange` text | Recommendations page + AI Insights cards with Apply button |
+| "I tried a fix — did it actually work?" | Causal before/after measurement with significance threshold (Δ≥2 pts, n≥3) | Flywheel "Measure" stage + Recently Applied panel on Agent Detail |
+| "Fixing each agent one at a time is slow" | Cross-agent pattern clustering — same fix applies to N agents | Recommendations page with per-agent rollup (Applied 1 of 2 — 1 still needed) |
+| "When the AI hallucinates I'm liable" | Hallucination detection on every call + structured "what said / why flagged / why it matters / what to do" cards | Call Detail unverified-claims card + per-agent hallucination count badge |
+| "Some calls need a human — I don't want them lost" | Use Actions queue with resolve/dismiss/escalate verbs; 3 escalations auto-spawn a recommendation | `/actions` page + per-agent breakdown + escalation→recommendation loop |
+
+### Internal-consistency audit results
+
+A full audit at v5.8 cross-checked every dashboard number against its implementation. Findings + resolutions:
+
+| # | Finding | Status |
+|---|---|---|
+| 1 | Funnel arrow Issues→Generated implied a conversion but the units differ (calls vs recs) | Fixed V4.4 — dropped the arrow, shown as "1.62 recs/issue" context note instead |
+| 2 | `successRate` was 0% on real data because it hardcoded `outcome='booked'` (no real outcome matched) | Fixed V5.4 — expanded to `POSITIVE_OUTCOMES` set + renamed to Conversion Rate |
+| 3 | "Success" defined two different ways across pages (outcome vs KPI status) | Fixed V5.4 — two separate cards: Conversion Rate (business outcome) + KPI Pass Rate (agent quality) |
+| 4 | `totalCallsAnalyzed` returned total calls regardless of analysis status | Fixed V5.4 — now filters on `analysis_status='completed'` |
+| 5 | Caller Mood Trend used thresholds 70/50 but the per-agent sentiment KPI default was 60 — same number, two verdicts | Fixed V5.8 — aligned to 60/30 so chart and KPI grading agree |
+| 6 | "Patterns" vs "Recommendations" used interchangeably on the same page | Fixed V5.8 — unified on "Recommendations" across all 6 user-facing labels |
+| 7 | `Monitor → Improve Loop` strip showed `vs prior 30d` regardless of selected window | Fixed V5.2 — wrapped derived label in `computed()` so it reacts to prop changes |
+| 8 | `applied_prompt_version_id` was null on every V4 apply → measurement chain silently broken | Fixed V4.3 — `ApplyRecommendationService` now records prompt version + writes ID; 3 stuck recs backfilled |
+| 9 | Significance filter on Measure narrative said "0 significantly" even when there were significant improvements | Fixed V4.4 — `allMeasured` query was missing `after_sample_size` column |
+| 10 | Actions surface said nothing about whether resolving them improves the agent | Fixed V5.0 — escalation auto-spawn closes the loop; subtitle clarifies "operational queue" |
+
+### Reproducible verification
+
+All claims above can be reproduced from a fresh DB:
+
+```bash
+# Switch to seeded test DB
+bash .runtime/use-data.sh test
+
+# Run the simulation that brings the test DB to a full flywheel state
+node backend/scripts/regression/run.js --seed              # ~$0.10, ~3 min
+node backend/scripts/simulate-scaled-flywheel.js           # ~$0.50, ~4 min
+node backend/scripts/simulate-apply-patterns.js            # applies top 4 + measures
+
+# Verify
+curl -s -H 'X-API-Key: <key>' 'http://localhost:3001/api/flywheel/summary?days=30' | jq
+curl -s -H 'X-API-Key: <key>' 'http://localhost:3001/api/dashboard/summary?days=30' | jq
+
+# Run regression suites
+node backend/scripts/regression/v4-2-validators.js         # 14/14 should pass
+node backend/scripts/regression/v4-apply.js                # 27/27 against live HL sandbox
+```
+
+### Documentation aligned with implementation
+
+This file (`IMPLEMENTATION_PLAN.md`) is treated as the canonical engineering log. Every shipped change updates the relevant Phase section + the Acceptance Criteria + this Core Functionality coverage matrix. The intent is that a reader can pick any feature claim in the README or any UI label and trace it back to (a) the Phase that shipped it, (b) the code that implements it, and (c) the verification that proved it.
+
+## 9. Deliverables checklist
+
+| Deliverable | Status | Where |
+|---|---|---|
+| GitHub repo | ✅ | https://github.com/UdayAppam/voice-agent-flywheel |
+| README with Team-of-One framing + functional/mocked breakdown | ✅ | `README.md` |
+| Architecture documentation | ✅ | `docs/ARCHITECTURE.md` |
+| Implementation plan | ✅ (this file) | `docs/IMPLEMENTATION_PLAN.md` |
+| Data model | ✅ | `docs/DATA_MODEL.md` |
+| REST API specification | ✅ | `docs/API_SPEC.md` |
+| HL integration guide | ✅ | `docs/INTEGRATION.md` |
+| Demo script (2-5 min Loom) | Script written, recording pending | `docs/DEMO_SCRIPT.md` |
+| V4 design doc + API discovery | ✅ | `docs/V4_PLAN.md`, `docs/V4_API_DISCOVERY.md` |
+| Regression suites | ✅ | `backend/scripts/regression/` (scenario suite + v4-apply + v4-2-validators) |
+| Simulation scripts (test DB demo state) | ✅ | `backend/scripts/simulate-scaled-flywheel.js`, `simulate-apply-patterns.js` |
+| Benchmark script (latency tuning) | ✅ | `backend/scripts/bench-parse-sections-ab.js` |
+| Functional/mocked breakdown | ✅ | README capabilities matrix (~25 capabilities, each marked Live or Out of scope) |

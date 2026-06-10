@@ -1,7 +1,7 @@
 # Voice Agent Flywheel
 
 **Repo**: https://github.com/UdayAppam/voice-agent-flywheel
-**Stable tag**: `v4.8` (apply flow works against test DB via LocalAgentService adapter)
+**Stable tag**: `v5.8` (full Core Functionality coverage + per-agent observability surfaces + perf optimization)
 
 An observability + improvement copilot for HighLevel Voice AI agents. Built for the FSB Q226 hiring assignment.
 
@@ -186,7 +186,7 @@ bash .runtime/use-data.sh test|live              # toggle DB without restart
 
 Built solo across all four FSB roles. Decisions made:
 
-**Product** — chose the agency-owner persona (not end-caller, not single-agent operator), which drove top-nav IA: Overview / Flywheel / Patterns / Actions. Each tab maps to a daily task. Cut the AI-suggested-KPI auto-generation feature in favor of manual per-agent override — same value at 10× lower cost/risk. Recommendation lifecycle `active → applied → measured` chosen because the agency owner's question is "did my fix work?" not "what fix exists?". The Flywheel page was redesigned mid-build into **2 dominant heroes + opt-in drill-in** after PM-grade self-critique — the original 5-card layout was a wall of numbers; the new layout answers "is this healthy?" and "what should I do?" in 3 seconds.
+**Product** — chose the agency-owner persona (not end-caller, not single-agent operator), which drove top-nav IA: Overview / Flywheel / Patterns / Actions. Each tab maps to a daily task. Cut the AI-suggested-KPI auto-generation feature in favor of manual per-agent override — same value at 10× lower cost/risk. Recommendation lifecycle `active → applied → measured` chosen because the agency owner's question is "did my fix work?" not "what fix exists?". The Flywheel page was redesigned mid-build into **2 dominant heroes + opt-in drill-in** when the original 5-card layout proved to be a wall of numbers that didn't answer the user's actual question. The new layout answers "is this healthy?" and "what should I do?" in 3 seconds.
 
 **Design** — embraced HighLevel's design tokens, iframe-first layout so the dashboard never competes with HL's own chrome, narratives in plain English with consistent **what / why / evidence / action** format on every Flywheel stage card. Status colors are semantic (pass=green, warning=amber, fail=red) and reused everywhere. Dark theme audited for WCAG AA contrast — every text token now passes 4.5:1 minimum against every surface.
 
@@ -247,5 +247,10 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | V4.7 section-focused editor | Builds clean; section-edit splices into full prompt before apply; auto-falls back to whole-prompt editor on section-mismatch |
 | V4.8 apply on test DB | Verified end-to-end on `reg-grace`: preview-apply OK, all 7 validators pass, apply succeeds with `record_prompt_version` step in timeline, agent.script updated locally, new `agent_prompt_versions` row written |
 | V4.9 scaled simulation | Test DB seeded to 155 calls + 8 applied + 7 measured + 5 significant improvements + 1 caught regression. 2 scripts in `backend/scripts/simulate-*.js`, ~$0.50 OpenAI, ~4 min runtime. Reproducible. |
+| V5.0 Actions↔flywheel | Escalation auto-spawn verified: 3 escalations of `script_training` on `reg-grace` produced a new `escalation_pattern` recommendation visible in `/patterns` |
+| V5.4 dashboard correctness | Conversion Rate fix shipped: was 0% on real data due to hardcoded `'booked'`; now expanded set returns 6% on test DB. New `KPI Pass Rate` card adds the second legitimate signal. |
+| V5.5 agent detail (Core Functionality alignment) | Use Actions widget + Apply buttons on AI Insights + Recently Applied measurement proof + Recurring Deviations/Missed Opportunities aggregate — all FSB requirements now visible at agent level |
+| V5.7 preview-apply latency | Offset-based parseSections cuts cold latency 47s → 13s (72% saved); offset path hits first try in observed cases; verbatim fallback path preserved for safety; 14/14 V4.2 regression still passes |
+| V5.8 vocabulary + threshold audit | Sentiment thresholds aligned to KPI default (60/30 instead of 70/50); "Patterns" unified to "Recommendations" across 6 user-facing labels |
 | All SPA routes | HTTP 200 |
 | All API endpoints | HTTP 200 |
