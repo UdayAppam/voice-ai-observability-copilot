@@ -12,19 +12,28 @@ export const useCallStore = defineStore('calls', () => {
   const error = ref(null)
   const currentPage = ref(1)
   const currentLimit = ref(20)
-  const lastQuery = ref({ agentId: null, status: 'all', flag: null, sort: 'newest', search: '' })
+  const lastQuery = ref({ agentId: null, status: 'all', flag: null, sort: 'newest', search: '', days: null })
 
   // V5.9 — fetchCalls accepts append + sort/search/flag.
   // Default replaces (used when filters change). append=true is what the Load More button uses.
+  // V5.9.1 — `days` makes the list respect the Agent Detail period selector,
+  // so the count in the header matches the windowed stats above it.
   async function fetchCalls(agentId, {
-    page = 1, limit = 20, status = 'all', flag = null, sort = 'newest', search = '', append = false,
+    page = 1, limit = 20, status = 'all', flag = null, sort = 'newest', search = '',
+    days = null, append = false,
   } = {}) {
     if (append) loadingMore.value = true
     else loading.value = true
     error.value = null
     try {
       const { data } = await client.get(`/agents/${agentId}/calls`, {
-        params: { page, limit, status, flag: flag || undefined, sort, search: search || undefined },
+        params: {
+          page, limit, status,
+          flag: flag || undefined,
+          sort,
+          search: search || undefined,
+          days: days || undefined,
+        },
       })
       if (append) {
         // Dedupe defensively in case of overlapping pages (filter changes mid-flight)
@@ -36,7 +45,7 @@ export const useCallStore = defineStore('calls', () => {
       totalCalls.value = data.total
       currentPage.value = data.page
       currentLimit.value = data.limit
-      lastQuery.value = { agentId, status, flag, sort, search }
+      lastQuery.value = { agentId, status, flag, sort, search, days }
     } catch (err) {
       error.value = err
     } finally {
@@ -55,7 +64,7 @@ export const useCallStore = defineStore('calls', () => {
     await fetchCalls(q.agentId, {
       page: currentPage.value + 1,
       limit: currentLimit.value,
-      status: q.status, flag: q.flag, sort: q.sort, search: q.search,
+      status: q.status, flag: q.flag, sort: q.sort, search: q.search, days: q.days,
       append: true,
     })
   }

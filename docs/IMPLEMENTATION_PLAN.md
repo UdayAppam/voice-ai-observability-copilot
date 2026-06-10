@@ -729,7 +729,56 @@ GET .../reg-maya/calls?flag=unverified → 8 calls, top quote: "We're fully HIPA
 GET .../reg-grace/calls?flag=use_actions → 39 calls with action counts
 ```
 
-**Architect audit summary** (also captured in IMPLEMENTATION_PLAN audits across V4.3, V4.4, V5.4, V5.8, V5.9):
+---
+
+### Phase 5.9.1 — Denominator consistency across Agent Detail
+
+Follow-up PM audit on V5.9 found that three numbers on the Agent Detail page used three different denominators, breaking trust in the counts even though each number was internally correct.
+
+For `reg-frontdoor` on the test DB at the default 30-day window:
+
+| Surface | Number | Source |
+|---|---|---|
+| Hero "Calls" stat | 40 | `call_timestamp >= sinceISO` (windowed) |
+| Recurring Deviations: "9 of **40** calls (22%)" | 40 | same windowed total |
+| Calls list header "Calls (**47**)" | 47 | all calls for the agent — `GET /agents/:id/calls` ignored the period selector |
+
+Result: the user saw "40" above and "47" below on the same page and reasonably assumed one was wrong.
+
+**Fix 1 (the visible bug) — window the calls list by `?days=`**
+- `GET /agents/:id/calls` now accepts `days` and applies `c.call_timestamp >= sinceISO` like the other endpoints
+- `callStore.fetchCalls` + `loadMore` thread the param through
+- `AgentDetailView` passes `rangeDays` so a single period selector drives every section
+- Verified at days=7/30/90 across reg-grace, reg-maya, reg-frontdoor — hero stat and calls-list total agree in all 9 combos
+
+**Fix 2 — make the windowing explicit in copy**
+- "9 of 40 calls (22%)" → "9 of 40 calls **in last 30d** (22%)"
+- Same change applied to Missed Opportunities row template
+- Self-explanatory denominator; closes the "why 40 not 47?" confusion at the source
+
+**Fix 3 (defensive) — `callCount` truly counts unique calls**
+- `aggregateJsonField()` previously did `byDesc[desc].callCount++` for every JSON item, so if a single call's `deviations_json` ever contained the same description twice, the count would inflate.
+- Today the test DB never generates that shape so the contract happened to hold, but the field name + UI label promise "X **of Y calls**". Switched to a `Set<call_id>` internally and expose `.size` as `callCount`.
+- Today's numbers don't change (verified) — this is a latent bug guard.
+
+**Fix 4 — longer description key**
+- Bumped `slice(0, 100)` → `slice(0, 200)` to reduce silent collapse when the LLM emits long descriptions that share a 100-char prefix.
+
+**Verified end-to-end on test DB**:
+```
+agent          window  hero  calls  match?
+reg-grace          7d    17     17    ✓
+reg-grace         30d    50     50    ✓
+reg-grace         90d    52     52    ✓
+reg-maya           7d    13     13    ✓
+reg-maya          30d    48     48    ✓
+reg-maya          90d    48     48    ✓
+reg-frontdoor      7d    14     14    ✓
+reg-frontdoor     30d    40     40    ✓
+reg-frontdoor     90d    47     47    ✓
+```
+
+**Architect audit summary** (also captured in IMPLEMENTATION_PLAN audits across V4.3, V4.4, V5.4, V5.8, V5.9, V5.9.1):
 - ✅ Funnel math + lifecycle sentence math match implementation
 - ✅ Stage card `producesRows` correctly maps to funnel rows
 - ✅ Apply chain (V4 + V4.3 fix) verified end-to-end on both DBs
@@ -805,6 +854,8 @@ A full audit at v5.8 cross-checked every dashboard number against its implementa
 | 11 | Agent Detail header said "Calls (47)" but the list only rendered 20 — no pagination UI even though backend supported `?page=&limit=` | Fixed V5.9 — Load More button + filter chips + day grouping + sort/search; header rewritten as "showing X of N" |
 | 12 | `call.hasHallucination` referenced in the calls-list template but the backend never returned it → badge silently dead since the field was introduced | Fixed V5.9 — backend now derives `hasHallucination`, `unverifiedClaimsCount`, `topHallucinationQuote` per row from `hallucinations_json` |
 | 13 | "Hallucination" jargon shown to end users instead of the customer-facing "unverified claim" vocabulary used on Call Detail | Fixed V5.9 — all calls-list + hero references unified on "unverified claim(s)" with 3-layer treatment (label, visual prominence, hover-quote) |
+| 14 | Calls list header showed "Calls (47)" while deviation card on same page said "9 of 40 calls (22%)" — same agent, two different totals because list endpoint never applied the period selector | Fixed V5.9.1 — `GET /agents/:id/calls` now accepts `?days=` like the hero/deviation endpoints; deviation copy now explicit ("in last 30d") so the denominator is self-explanatory |
+| 15 | `aggregateJsonField` counted occurrences not unique calls — contract said "X **of Y calls**" but a single call with the same description twice would have inflated the number | Fixed V5.9.1 (defensive) — switched to `Set<call_id>` internally; today's numbers unchanged but the contract now holds even if the LLM repeats a finding within one call |
 
 ### Reproducible verification
 

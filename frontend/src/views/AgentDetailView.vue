@@ -181,7 +181,8 @@
                 <span class="flex-1 min-w-0">
                   <span class="text-text-primary">{{ d.description }}</span>
                   <span class="text-text-muted ml-1 font-mono">
-                    — {{ d.callCount }} of {{ qs?.totalCalls || 0 }} calls ({{ Math.round((d.callCount / (qs?.totalCalls || 1)) * 100) }}%)
+                    — {{ d.callCount }} of {{ qs?.totalCalls || 0 }} calls in last {{ rangeDays }}d
+                    ({{ Math.round((d.callCount / (qs?.totalCalls || 1)) * 100) }}%)
                   </span>
                 </span>
               </div>
@@ -208,7 +209,7 @@
                 <span class="flex-1 min-w-0">
                   <span class="text-text-primary">{{ m.description }}</span>
                   <span class="text-text-muted ml-1 font-mono">
-                    — {{ m.callCount }} of {{ qs?.totalCalls || 0 }} calls
+                    — {{ m.callCount }} of {{ qs?.totalCalls || 0 }} calls in last {{ rangeDays }}d
                   </span>
                 </span>
               </div>
@@ -605,6 +606,9 @@ function applyCallFilters() {
     flag:   f.flag,
     sort:   sortBy.value,
     search: searchInput.value,
+    // V5.9.1 — same period as hero stats + deviation aggregates, so all
+    // counts on the page share one denominator.
+    days:   rangeDays.value,
   })
 }
 

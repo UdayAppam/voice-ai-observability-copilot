@@ -188,22 +188,32 @@ router.get('/:id', (req, res, next) => {
 
     // ─── V5.5 — Deviations + Missed Opportunities aggregate (FSB "Identify
     // deviations, failures, missed opportunities") ──────
+    // V5.9.1 — `callCount` now means "unique calls exhibiting this issue"
+    // (was: total occurrences across all calls). Today the test DB never
+    // generates two same-description items in one call so the previous code
+    // happened to be right, but the field name + UI label ("X of Y calls")
+    // promised a unique-calls count. Using a Set keeps the contract honest
+    // even when the LLM repeats the same finding across turns of one call.
+    // Also bumped key length 100 → 200 to reduce false-collapse of long text.
     function aggregateJsonField(field, limit = 5) {
       const rows = db.prepare(`
-        SELECT a.${field} FROM analyses a JOIN calls c ON c.id = a.call_id
+        SELECT a.call_id, a.${field} as payload FROM analyses a JOIN calls c ON c.id = a.call_id
         WHERE c.agent_id = ? AND a.analyzed_at >= ? AND a.${field} != '[]'
       `).all(agent.id, sinceISO)
       const byDesc = {}
       for (const r of rows) {
         try {
-          for (const item of JSON.parse(r[field])) {
-            const desc = (item.description || item.pattern || JSON.stringify(item)).slice(0, 100)
-            byDesc[desc] = byDesc[desc] || { description: desc, callCount: 0 }
-            byDesc[desc].callCount++
+          for (const item of JSON.parse(r.payload)) {
+            const desc = (item.description || item.pattern || JSON.stringify(item)).slice(0, 200)
+            if (!byDesc[desc]) byDesc[desc] = { description: desc, _calls: new Set() }
+            byDesc[desc]._calls.add(r.call_id)
           }
         } catch { /* ignore */ }
       }
-      return Object.values(byDesc).sort((a, b) => b.callCount - a.callCount).slice(0, limit)
+      return Object.values(byDesc)
+        .map((x) => ({ description: x.description, callCount: x._calls.size }))
+        .sort((a, b) => b.callCount - a.callCount)
+        .slice(0, limit)
     }
     const deviationsAggregate = aggregateJsonField('deviations_json')
     const missedOpportunitiesAggregate = aggregateJsonField('missed_opportunities_json')
@@ -293,12 +303,23 @@ router.get('/:id/calls', (req, res, next) => {
     const sort = ['newest', 'oldest', 'score_asc', 'score_desc', 'duration_asc', 'duration_desc']
       .includes(req.query.sort) ? req.query.sort : 'newest'
     const search = (req.query.search || '').trim().slice(0, 80)
+    // V5.9.1 — `days` makes the calls list respect the same period selector as
+    // the rest of the Agent Detail page. Before, hero stats / deviations were
+    // windowed by `?days=` but this list always returned ALL calls — so a user
+    // on "Last 30 days" saw "Calls (47)" alongside "9 of 40 calls (22%)" and
+    // assumed the deviation card was wrong. Same source of truth now.
+    const days = req.query.days != null ? Math.min(365, Math.max(1, parseInt(req.query.days) || 0)) : null
     const offset = (page - 1) * limit
 
     // WHERE clauses built defensively. Status uses parameter binding to be
     // safe against future expansion; same for search.
     const clauses = ['c.agent_id = ?']
     const params = [req.params.id]
+    if (days) {
+      const sinceISO = new Date(Date.now() - days * 86400e3).toISOString()
+      clauses.push('c.call_timestamp >= ?')
+      params.push(sinceISO)
+    }
     if (status !== 'all')           { clauses.push('a.status = ?');                params.push(status) }
     if (flag === 'unverified')      { clauses.push("a.hallucinations_json != '[]' AND a.hallucinations_json IS NOT NULL") }
     if (flag === 'use_actions')     { clauses.push("a.use_actions_json != '[]' AND a.use_actions_json IS NOT NULL") }
@@ -388,7 +409,7 @@ router.get('/:id/calls', (req, res, next) => {
       }
     })
 
-    res.json({ total, page, limit, sort, status, flag, search, calls: result })
+    res.json({ total, page, limit, sort, status, flag, search, days, calls: result })
   } catch (err) {
     next(err)
   }
