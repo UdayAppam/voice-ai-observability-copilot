@@ -235,6 +235,12 @@ router.get('/:id', (req, res, next) => {
       }
     })
 
+    // V5.6 — per-agent Caller Mood Trend + spike, reusing SentimentService
+    // helpers that already power the Overview agency-wide widget.
+    const { computeSentimentTrend, computeSentimentSpike } = require('../services/SentimentService')
+    const sentimentTrend = computeSentimentTrend(sinceISO, days, agent.id)
+    const sentimentSpike = computeSentimentSpike(sentimentTrend, agent.id)
+
     res.json({
       id: agent.id,
       name: agent.name,
@@ -249,6 +255,10 @@ router.get('/:id', (req, res, next) => {
       deviationsAggregate,
       missedOpportunitiesAggregate,
       recentlyApplied,
+      // V5.6 — per-agent Caller Mood Trend (reuses SentimentTrend.vue component)
+      sentimentTrend,
+      sentimentSpike,
+      sentimentBucketThresholds: { positive: 70, negative: 50 },
     })
   } catch (err) {
     next(err)

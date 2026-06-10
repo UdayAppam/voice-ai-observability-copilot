@@ -142,6 +142,20 @@
           </div>
         </section>
 
+        <!-- ════════ V5.6 — PER-AGENT CALLER MOOD TREND ═════════════════ -->
+        <!-- Reuses the SentimentTrend component from the Overview page.
+             Empty `agents` list hides the dropdown (we're already on the
+             agent). Spike footer auto-links to /patterns?agentId=…
+             since computeSentimentSpike was passed this agent's id. -->
+        <SentimentTrend
+          v-if="agent.sentimentTrend"
+          :trend="agent.sentimentTrend"
+          :spike="agent.sentimentSpike"
+          :thresholds="agent.sentimentBucketThresholds"
+          :agents="[]"
+          :current-agent-id="agent.id"
+        />
+
         <!-- ════════ PER-AGENT FLYWHEEL (existing component) ═════════════ -->
         <AgentHorizontalFlywheel :agent-id="agent.id" :agent-name="agent.name" />
 
@@ -415,6 +429,7 @@ import KpiBars from '@/components/KpiBars.vue'
 import StatusBar from '@/components/StatusBar.vue'
 import WorstKpiBadge from '@/components/WorstKpiBadge.vue'
 import ApplyRecommendationButton from '@/components/ApplyRecommendationButton.vue'
+import SentimentTrend from '@/components/SentimentTrend.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ErrorState from '@/components/ErrorState.vue'

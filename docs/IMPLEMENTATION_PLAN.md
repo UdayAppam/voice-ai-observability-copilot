@@ -573,6 +573,34 @@ PM-grade audit of `/agents/:id` surfaced three FSB requirement gaps + several UX
 - deviationsAggregate: "Did not ask about specific problem" — 17 of 48 calls (35%)
 - recentlyApplied: 3 measured_significant recs with deltas +20.3, +19.6, +19.6 pts (n=3-4)
 - All FSB requirements (Monitor / Analyze / Use Actions / immediate recommendations / Validation Flywheel) now visible at agent level
+
+### Phase 5.6 — Per-agent Caller Mood Trend on Agent Detail
+
+User asked for the agency-wide Caller Mood Trend (V5.3) to also appear at agent level so they can spot per-agent mood shifts without navigating back to Overview and filtering. PM+architect review:
+
+**Architectural decision — extract helpers to a shared service**:
+- `computeSentimentTrend` and `computeSentimentSpike` previously lived in `routes/dashboard.js`. Cross-route reuse would require either circular-import gymnastics or duplication.
+- Moved to `backend/src/services/SentimentService.js` — both dashboard and agents routes now require from one canonical place. `dashboard.js` re-exports nothing new; functional behaviour identical.
+- `computeSentimentSpike(trend, agentId)` extended with optional `agentId` so the "top contributing pattern" lookup can scope to a single agent on the Agent Detail surface (vs. agency-wide on Overview).
+
+**Backend** — `backend/src/routes/agents.js GET /:id`:
+- Calls `computeSentimentTrend(sinceISO, days, agent.id)` — same window the rest of the agent endpoint uses
+- Calls `computeSentimentSpike(sentimentTrend, agent.id)` — agent-scoped top pattern
+- Response now includes `sentimentTrend`, `sentimentSpike`, `sentimentBucketThresholds` (matches the shape Overview uses)
+
+**Frontend** — `AgentDetailView.vue`:
+- Imports the existing `SentimentTrend.vue` component (V5.3) — zero new widget code
+- Placed AFTER Use Actions, BEFORE the Per-agent Flywheel — gives mood context before deviation analysis
+- Passes empty `agents=[]` → dropdown auto-hides (no need to pick agent; we're already drilled in)
+- Period selector at top of Agent Detail (V5.5) controls mood window too — consistent
+- Spike footer auto-links to /patterns?agentId=… for next-step action
+
+**Verified end-to-end on test DB `reg-maya`**:
+- `sentimentTrend`: 30 days, 14 days with data
+- `sentimentSpike`: `2026-05-25` (100% negative, 1 of 1 call), top pattern "Summarize Next Steps" (this agent's active rec) — scoping working correctly
+- Bundle contains `SentimentTrend` import + new field bindings
+
+**Files**: `backend/src/services/SentimentService.js` (new), `backend/src/routes/dashboard.js` (now requires from service), `backend/src/routes/agents.js` (uses the service + extends response), `frontend/src/views/AgentDetailView.vue` (places the component).
 - [x] Sync All works end-to-end and reflects in Funnel + Patterns within seconds
 - [x] `npm run lint` passes in both backend and frontend with **zero warnings**
 - [x] All routes return HTTP 200
